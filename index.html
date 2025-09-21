@@ -1,0 +1,3053 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kierans Football Groundhops</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin="" />
+
+  <style>
+    :root { --sidebar-w: 360px; }
+    html, body { height: 100%; margin: 0; }
+    #app { height:100%; display:flex; }
+    #map { height: 100%; flex: 1 1 auto; }
+    #sidebar {
+      width: var(--sidebar-w);
+      max-width: 90vw;
+      border-left: 1px solid #e5e7eb;
+      background: #fff;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      padding: 12px;
+      overflow:auto;
+    }
+    #sidebar h2 { font-size: 18px; margin: 4px 0 10px; }
+    .hint { color:#6b7280; font-size:12px; margin: 0 0 8px; }
+
+    /* cells with badge + club */
+    #sidebar .cell-badge { display:flex; align-items:center; gap:8px; }
+    #sidebar .cell-badge img { width:28px; height:28px; object-fit:contain; border-radius:4px; }
+    #sidebar .club { font-weight:600; }
+
+    .badge-icon { background: transparent; border: 0; }
+    .badge-icon img { display: block; height: 40px; width: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { position: sticky; top: 0; background: #f8fafc; text-align:left; font-weight:600; border-bottom:1px solid #e5e7eb; padding:8px 6px; }
+    tbody td { padding:8px 6px; border-bottom: 1px solid #f1f5f9; }
+    tbody tr { cursor:pointer; }
+    tbody tr:hover { background:#f8fafc; }
+    .num { text-align:right; font-variant-numeric: tabular-nums; }
+    #sidebar .club { color:#6b7280; font-size:12px; }
+
+    /* popup + stars */
+    .popup .header { display:flex; align-items:center; gap:10px; }
+    .popup .header img { width:64px; height:64px; object-fit:contain; }
+    .popup .title { flex:1; }
+    .popup .chevron { cursor:pointer; user-select:none; font-size:18px; line-height:1; padding:4px 6px; border-radius:6px; color:#333; }
+    .popup .chevron:hover { background:#f2f2f2; }
+    .popup .details { display:none; margin-top:8px; border-top:1px solid #eee; padding-top:8px; }
+    .popup .row { display:flex; justify-content:space-between; gap:10px; margin:6px 0; }
+    .stars { position:relative; display:inline-block; font-size:16px; line-height:1; }
+    .stars .bg, .stars .fg { display:block; }
+    .stars .bg { color:#ddd; }
+    .stars .fg { position:absolute; inset:0 auto 0 0; overflow:hidden; white-space:nowrap; color:#f2b01e; width:0%; }
+    .category { color:#444; }
+    .score10 { color:#666; font-variant-numeric:tabular-nums; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <script>
+    function badgeIcon(url) {
+      return L.divIcon({
+        html: `<img src="${url}" alt="">`,
+        className: 'badge-icon',
+        iconSize: null,
+        iconAnchor: [20, 20],
+        popupAnchor: [0, -18]
+      });
+    }
+
+    // 1) List of grounds
+    const grounds = [
+    
+   {
+        name: "Upton Park (Boleyn Ground)",
+         addr: {
+    line1: "Green Street,",   
+    town: "Upton Park",
+    county: "London",
+    postcode: "E13 9AZ"
+  },
+        visit: "1",
+        date: "29/04/2005", 
+        club: "West Ham United",   
+        lat: 51.5319, 
+        lng: 0.0394,
+        badge: "assets/west-ham-badge-outline.jpg",
+        ratings: { atmosphere:10, staff:5, city:4, ground:7, food:5, location:4, character:10, people:5 }
+      },    
+    
+    {
+        name: "Priestfield Stadium",
+         addr: {
+    line1: "Redfern Avenue,",   
+    town: "Gillingham",
+    county: "Kent",
+    postcode: "ME7 4DD"
+  },
+        visit: "2",
+        date: "09/03/2013",
+        club: "Gillingham",
+        lat: 51.3842,
+        lng: 0.5608,
+        badge: "assets/gillingham-badge.png",
+        ratings: { atmosphere:6, staff:5, city:4, ground:4, food:4, location:5, character:6, people:5 }
+      },
+        {
+        name: "London Stadium",
+         addr: {
+    line1: "Queen Elizabeth Olympic Park",
+    town: "London",
+    county: "Greater London",
+    postcode: "E20 2ST"
+  },
+        visit: "3",
+        date: "07/05/2016",
+        club: "West Ham United",
+        lat: 51.5386,
+        lng: -0.0165,
+        badge: "assets/west-ham-badge.png",
+        ratings: { atmosphere:8, staff:7, city:6, ground:7, food:3, location:10, character:8, people:5 }
+      },
+        
+       {
+        name: "Old Trafford",
+         addr: {
+    line1: "Sir Matt Busby Way",   
+    town: "Manchester",
+    county: "Greater Manchester",
+    postcode: "M16 0RA"
+  },
+      
+        visit: "4",
+        date: "06/08/2021",
+        club: "Manchester United",
+        lat: 53.463056,
+        lng: -2.291389,
+        badge: "assets/man-united-badge.png",
+        ratings: { atmosphere:5, staff:9, city:6, ground:7, food:4, location:4, character:10, people:7 }
+      },
+            {
+        name: "Wembley",
+         addr: {
+    line1: "South Way",   
+    town: "Wembley",
+    county: "Greater London",
+    postcode: "HA9 0WS"
+  },
+        visit: "5",
+        date: "15/11/2021",
+        club: "England",
+        lat: 51.55597, 
+        lng: -0.27967,
+        badge: "assets/england-badge.png",
+        ratings: { atmosphere:9, staff:6, city:5, ground:10, food:7, location:8, character:10, people:6 }
+      },
+            {
+        name: "The Valley",
+         addr: {
+    line1: "Floyd Road",   
+    town: "Charlton",
+    county: "Greater London",
+    postcode: "SE7 8BL"
+  },
+        visit: "6",
+        date: "05/02/2022",
+        club: "Charlton Athletic",
+        lat: 51.4862,
+        lng: 0.0363,  
+        badge: "assets/charlton-badge.png",
+        ratings: { atmosphere:5, staff:7, city:4, ground:6, food:5, location:7, character:7, people:4 }
+      },
+
+            {
+        name: "Roots Hall",
+         addr: {
+    line1: "Victoria Avenue",   
+    town: "Southend-on-Sea",
+    county: "Essex",
+    postcode: "SS2 6NQ"
+  },
+        visit: "7",
+        date: "26/02/2022",
+        club: "Southend United",
+        lat: 51.54917,
+        lng: 0.70167,  
+        badge: "assets/southend-badge.png",
+        ratings: { atmosphere:3, staff:5, city:6, ground:4, food:4, location:6, character:4, people:4 }
+      },
+                 {
+        name: "Adams Park",
+         addr: {
+    line1: "Hillbottom Road",   
+    town: "High Wycombe",
+    county: "Buckinghamshire",
+    postcode: "HP12 4HJ"
+  },
+        visit: "8",
+        date: "02/04/2022",
+        club: "Wycombe Wanderers",
+        lat: 51.6306,
+        lng: -0.8003,  
+        badge: "assets/wycombe-badge.png",
+        ratings: { atmosphere:6, staff:5, city:5, ground:4, food:7, location:4, character:6, people:5 }
+      },
+                     {
+        name: "Carrow Road",
+         addr: {
+    line1: "Carrow Road",   
+    town: "Norwich",
+    county: "Norfolk",
+    postcode: "NR1 1JE"
+  },
+        visit: "9",
+        date: "10/04/2022", 
+        club: "Norwich City",   
+        lat: 52.62222,
+        lng: 1.30917,  
+        badge: "assets/norwich-badge.png",
+        ratings: { atmosphere:7, staff:1, city:10, ground:6, food:5, location:8, character:5, people:9 }
+      },
+            {
+        name: "The Hawthorns",
+         addr: {
+    line1: "The Hawthorns",   
+    town: "West Bromwich",
+    county: "West Midlands",
+    postcode: "B71 4LF"
+  },
+        visit: "10",
+        date: "23/04/2022", 
+        club: "West Bromwich Albion",   
+        lat: 52.509167, 
+        lng: -1.963889,
+        badge: "assets/west-brom-badge.png",
+        ratings: { atmosphere:2, staff:5, city:3, ground:6, food:5, location:4, character:8, people:8 }
+      },
+           {
+        name: "St Marys Stadium",
+         addr: {
+    line1: "Britannia Road,",   
+    town: "Southampton",
+    county: "Hampshire",
+    postcode: "SO14 5FP"
+  },
+        visit: "11",
+        date: "30/04/2022", 
+        club: "Southampton",   
+        lat: 50.9058, 
+        lng: -1.3911,
+        badge: "assets/southampton-badge.png",
+        ratings: { atmosphere:6, staff:6, city:5, ground:7, food:6, location:5, character:7, people:5 }
+      },
+
+       {
+        name: "Pride Park",
+         addr: {
+    line1: "Pride Park,",   
+    town: "Derby",
+    county: "Derbyshire",
+    postcode: "DE24 8XL"
+  },
+        visit: "12",
+        date: "07/05/2022", 
+        club: "Derby County",   
+        lat: 52.9149, 
+        lng: -1.4474,
+        badge: "assets/derby-badge.png",
+        ratings: { atmosphere:9, staff:7, city:7, ground:7, food:6, location:8, character:8, people:7 }
+      },
+
+       {
+        name: "Vicarage Road",
+         addr: {
+    line1: "Vicarage Road,",   
+    town: "Watford",
+    county: "Hertfordshire",
+    postcode: "WD18 0ER"
+  },
+        visit: "13",
+        date: "15/05/2022", 
+        club: "Watford",   
+        lat: 51.64980,   
+        lng: -0.40148,
+        badge: "assets/watford-badge.png",
+        ratings: { atmosphere:5, staff:5, city:5, ground:6, food:3, location:6, character:5, people:5 }  
+      },
+
+
+        {
+        name: "Lamex Stadium",
+         addr: {
+    line1: "Broadhall Way,",   
+    town: "Stevenage",
+    county: "Hertfordshire",
+    postcode: "SG2 8RH"
+  },
+        visit: "14",
+        date: "09/07/2022", 
+        club: "Stevenage",   
+        lat:  51.889839,     
+        lng: -0.193608,
+        badge: "assets/stevenage-badge.png",
+        ratings: { atmosphere:4, staff:7, city:5, ground:4, food:5, location:4, character:5, people:6 }  
+      },
+
+             {
+        name: " Cherry Red Records Stadium,",
+         addr: {
+    line1: "Plough Lane,",   
+    town: "Wimbledon",
+    county: "Greater London",
+    postcode: "SW17 0NR"
+  },
+        visit: "15",
+        date: "16/07/2022", 
+        club: "Wimbledon",   
+        lat: 51.431389,  
+        lng: -0.186667,  
+        badge: "assets/wimbledon-badge.png",
+        ratings: { atmosphere:8, staff:8, city:5, ground:7, food:5, location:5, character:8, people:7 }  
+      },
+
+             {
+        name: " Vitality Stadium (Dean Court),",
+         addr: {
+    line1: "Kings Park,",   
+    town: "Bournemouth",
+    county: "Dorset",
+    postcode: "BH7 7AF"
+  },
+        visit: "16",
+        date: "23/07/2022", 
+        club: "Bournemouth",   
+        lat: 50.735278, 
+        lng: -1.838333,
+        badge: "assets/bournemouth-badge.png",
+        ratings: { atmosphere:3, staff:5, city:7, ground:3, food:8, location:5, character:2, people:5 }  
+      },
+
+            {
+        name: "Emirates Stadium,",
+         addr: {
+    line1: "Hornsey Road,",   
+    town: "Holloway",
+    county: "Greater London",
+    postcode: "N7 7AJ"
+  },
+        visit: "17",
+        date: "30/07/2022",
+        club: "Arsenal",
+        lat: 51.555, 
+        lng: -0.108611,  
+        badge: "assets/arsenal-badge.png",
+        ratings: { atmosphere:8, staff:5, city:6, ground:8, food:3, location:7, character:9, people:4 }  
+      },
+     {
+        name: "Craven Cottage,",
+         addr: {
+    line1: "Stevenage Road,",   
+    town: "Fulham",
+    county: "Greater London",
+    postcode: "SW6 6HH"
+  },
+        visit: "18",
+        date: "31/07/2022",
+        club: "Fulham",
+        lat: 51.475,
+        lng: -0.221667,   
+        badge: "assets/fulham-badge.png",
+        ratings: { atmosphere:5, staff:5, city:6, ground:6, food:2, location:4, character:8, people:5 }  
+      },
+        {
+        name: "Craven Cottage,",
+         addr: {
+    line1: "Another Way,",   
+    town: "Nailsworth",
+    county: "Gloucestershire",
+    postcode: "GL6 0FG"
+  },
+        visit: "19",
+        date: "06/08/2022",
+        club: "Forest Green Rovers",
+        lat: 51.698889, 
+        lng: -2.237778,   
+        badge: "assets/forest-green-badge.png",
+         ratings: { atmosphere:5, staff:5, city:9, ground:6, food:5, location:6, character:7, people:3 }  
+      },
+        {
+        name: "The Amex Stadium (Falmer Stadium),",
+         addr: {
+    line1: "Village Way,",   
+    town: "Falmer",
+    county: "East Sussex",
+    postcode: "BN1 9BL"
+  },
+        visit: "20",
+        date: "13/08/2022",
+        club: "Brighton & Hove Albion",
+        lat: 50.8616000,  
+        lng: -0.0832000,  
+        badge: "assets/brighton-badge.png",
+        ratings: { atmosphere:8, staff:6, city:8, ground:8, food:6, location:7, character:5, people:5 }  
+      },
+            {
+        name: "Fratton Park,",
+         addr: {
+    line1: "Goldsmith Road,",   
+    town: "Portsmouth",
+    county: "Hampshire",
+    postcode: "PO4 8SX"
+  },
+        visit: "21",
+        date: "20/08/2022",
+        club: "Portsmouth",
+        lat: 50.796389, 
+        lng: -1.063889,   
+        badge: "assets/portsmouth-badge.png",
+        ratings: { atmosphere:10, staff:5, city:7, ground:4, food:6, location:4, character:10, people:5 }  
+      },
+             {
+        name: "Portman Road,",
+         addr: {
+    line1: "Portman Road,",   
+    town: "Ipswich",
+    county: "Suffolk",
+    postcode: "IP1 2DA"
+  },
+        visit: "22",
+        date: "27/08/2022",
+        club: "Ipswich Town",
+        lat: 52.055, 
+        lng: 1.144950,   
+        badge: "assets/ipswich-badge.png",
+        ratings: { atmosphere:6, staff:6, city:5, ground:5, food:7, location:5, character:7, people:4 }  
+      },
+          {
+        name: "Abbey Stadium,",
+         addr: {
+    line1: "Newmarket Road,",   
+    town: "Cambridge",
+    county: "Cambridgeshire",
+    postcode: "CB5 8LN"
+  },
+        visit: "23",
+        date: "03/09/2022",
+        club: "Cambridge United",
+        lat: 52.2121,  
+        lng: 0.15415,   
+        badge: "assets/cambridge-badge.png",
+        ratings: { atmosphere:5, staff:8, city:5, ground:5, food:6, location:4, character:3, people:6 }
+      },
+          {
+        name: "Colchester Community Stadium,",
+         addr: {
+    line1: "United Way,",   
+    town: "Colchester",
+    county: "Essex",
+    postcode: "CO4 5UP"
+  },
+        visit: "24",
+        date: "17/09/2022",
+        club: "Colchester United",
+        lat: 51.923394,   
+        lng: 0.897702,   
+        badge: "assets/colchester-badge.png",
+        ratings: { atmosphere:3, staff:6, city:9, ground:5, food:5, location:6, character:5, people:5 }
+      },
+            {
+        name: "Anfield,",
+         addr: {
+    line1: "Anfield Road,",   
+    town: "Liverpool",
+    county: "Merseyside",
+    postcode: "L4 0TH"
+  },
+        visit: "25",
+        date: "24/09/2022",
+        club: "Liverpool",
+        lat: 53.43083,
+        lng: -2.96083, 
+        badge: "assets/liverpool-badge.png",
+        ratings: { atmosphere:8, staff:9, city:9, ground:7, food:5, location:4, character:9, people:8 }
+      },
+            {
+        name: "MKM Stadium,",
+         addr: {
+    line1: "West Park,",   
+    town: "Kingston upon Hull",
+    county: "East Riding of Yorkshire",
+    postcode: "HU3 6HU"
+  },
+        visit: "26",
+        date: "16/10/2022",
+        club: "Hull City",
+        lat: 53.746111,   
+        lng: -0.367778, 
+        badge: "assets/hull-badge.png",
+        ratings: { atmosphere:5, staff:8, city:6, ground:6, food:5, location:6, character:3, people:6 }
+      },
+         {
+        name: "Broadfield Stadium,",
+         addr: {
+    line1: "Winfield Way,",   
+    town: "Crawley",
+    county: "West Sussex",
+    postcode: "RH11 9RX"
+  },
+        visit: "27",
+        date: "22/10/2022",
+        club: "Crawley Town",
+        lat: 51.099722,  
+        lng: -0.194722, 
+        badge: "assets/crawley-badge.png",
+        ratings: { atmosphere:4, staff:5, city:3, ground:5, food:4, location:4, character:6, people:5 }
+      },
+            {
+        name: "Technique Stadium,",
+         addr: {
+    line1: "Sheffield Road,",   
+    town: "Chesterfield",
+    county: "Derbyshire",
+    postcode: "S41 8NZ"
+  },
+        visit: "28",
+        date: "29/10/2022",
+        club: "Chesterfield",  
+        lat: 53.253611,   
+        lng: -1.425833, 
+        badge: "assets/chesterfield-badge.png",
+        ratings: { atmosphere:2, staff:5, city:4, ground:4, food:6, location:4, character:5, people:5 }
+      },
+             {
+        name: "Brentford Community Stadium,",
+         addr: {
+    line1: "Great West Road,",   
+    town: "Brentford",
+    county: "Greater London",
+    postcode: "TW8 9AG"
+  },
+        visit: "29",
+        date: "08/11/2022",
+        club: "Brentford",   
+        lat: 51.490833,
+        lng: -0.288611, 
+        badge: "assets/brentford-badge.png",
+        ratings: { atmosphere:7, staff:6, city:4, ground:7, food:8, location:10, character:4, people:5 }
+      },
+             {
+        name: "The County Ground,",
+         addr: {
+    line1: "County Road,",   
+    town: "Swindon",
+    county: "Wiltshire",
+    postcode: "SN1 2ED"
+  },
+        visit: "30",
+        date: "12/11/2022",
+        club: "Swindon Town",  
+        lat: 51.564444, 
+        lng: -1.770556, 
+        badge: "assets/swindon-badge.png",
+        ratings: { atmosphere:3, staff:3, city:4, ground:5, food:5, location:5, character:7, people:3 }
+      },
+                {
+        name: "Molineux,",
+         addr: {
+    line1: "Waterloo Road,",   
+    town: "Wolverhampton",
+    county: "West Midlands",
+    postcode: "WV1 4QR"
+  },
+        visit: "31",
+        date: "19/11/2022",  
+        club: "Wolverhampton Wanderers",
+        lat: 52.590278, 
+        lng: -2.130278, 
+        badge: "assets/wolves-badge.png",
+        ratings: { atmosphere:4, staff:5, city:7, ground:6, food:5, location:4, character:7, people:5 }
+      },
+              {
+        name: "Stamford Bridge,",
+         addr: {
+    line1: "Fulham Road,",   
+    town: "Fulham",
+    county: "Greater London",
+    postcode: "SW6 1HS"
+  },
+        visit: "32",
+        date: "20/11/2022",
+        club: "Chelsea",
+        lat: 51.4817,
+        lng: -0.1910,
+        badge: "assets/chelsea-badge.png",
+        ratings: { atmosphere:10, staff:8, city:4, ground:6, food:4, location:6, character:10, people:8 }
+      },
+             {
+        name: "King Power Stadium,",
+         addr: {
+    line1: "Filbert Way,",   
+    town: "Leicester",
+    county: "Leicestershire",
+    postcode: "LE2 7FL"
+  },
+        visit: "33",
+        date: "03/12/2022",
+        club: "Leicester City",
+        lat: 52.620278,   
+        lng: -1.142222,
+        badge: "assets/leicester-badge.png",
+         ratings: { atmosphere:1, staff:6, city:5, ground:6, food:4, location:4, character:7, people:4 }
+      },
+    
+            {
+        name: "Etihad Stadium (City of Manchester Stadium),",
+         addr: {
+    line1: "Etihad Campus,",   
+    town: "Manchester",
+    county: "Greater Manchester",
+    postcode: "M11 3FF"
+  },
+        visit: "34",
+        date: "11/12/2022",
+        club: "Manchester City",
+        lat: 53.48306,
+        lng: -2.20028,
+        badge: "assets/man-city-badge.png",
+        ratings: { atmosphere:7, staff:6, city:6, ground:8, food:7, location:4, character:7, people:5 }
+      },
+        
+            {
+        name: "Villa Park,",
+         addr: {
+    line1: "Trinity Road,",   
+    town: "Birmingham",
+    county: "West Midlands",
+    postcode: "B6 6HE"
+  },
+        visit: "35",
+        date: "08/01/2023",
+        club: "Aston Villa", 
+        lat: 52.5092,
+        lng: -1.8847,  
+        badge: "assets/aston-villa-badge.png",
+        ratings: { atmosphere:7, staff:7, city:3, ground:7, food:6, location:8, character:7, people:4 }
+      },
+                    {
+        name: "Bramall Lane,",
+         addr: {
+    line1: "Bramall Lane,",   
+    town: "Sheffield",
+    county: "South Yorkshire",
+    postcode: "S2 4SU"
+  },
+        visit: "36",
+        date: "14/01/2023",
+        club: "Sheffield United", 
+        lat: 53.370278, 
+        lng: -1.470833,  
+        badge: "assets/sheffield-united-badge.png",
+        ratings: { atmosphere:8, staff:10, city:7, ground:8, food:5, location:7, character:8, people:10 }
+      },
+               {
+        name: "Kenilworth Road,",
+         addr: {
+    line1: "1 Maple Road East,",   
+    town: "Luton",
+    county: "Bedfordshire",
+    postcode: "LU4 8AW"
+  },
+        visit: "37",
+        date: "28/01/2023",
+        club: "Luton Town", 
+        lat: 51.884167,   
+        lng: -0.431667,  
+        badge: "assets/luton-badge.png",
+        ratings: { atmosphere:5, staff:3, city:2, ground:3, food:4, location:4, character:10, people:4 }
+      },
+    {
+        name: "Tottenham Hotspur Stadium,",
+         addr: {
+    line1: "782 High Road,",   
+    town: "Tottenham",
+    county: "Greater London",
+    postcode: "N17 0BX"
+  },
+        visit: "38",
+        date: "12/02/2023",
+        club: "Tottenham Hotspur",
+        lat: 51.6043,
+        lng: -0.0664,   
+        badge: "assets/tottenham-badge.png",
+        ratings: { atmosphere:7, staff:5, city:4, ground:10, food:9, location:6, character:9, people:4 }
+      },
+
+            {
+        name: "Goodison Park,",
+         addr: {
+    line1: "Goodison Road,",   
+    town: "Liverpool",
+    county: "Merseyside",
+    postcode: "L4 4EL"
+  },
+        visit: "39",
+        date: "18/02/2023",
+        club: "Everton", 
+        lat: 53.4389,
+        lng: -2.9664,  
+        badge: "assets/everton-badge-outline.jpg",
+        ratings: { atmosphere:10, staff:6, city:10, ground:9, food:9, location:4, character:9, people:9 }
+      },
+
+          {
+        name: "Madejski Stadium,",
+         addr: {
+    line1: "Junction 11, M4,",   
+    town: "Reading",
+    county: "Berkshire",
+    postcode: "RG2 0FL"
+  },
+        visit: "40",
+        date: "25/02/2023",
+        club: "Reading",
+        lat: 51.422222,
+        lng: -0.982778,    
+        badge: "assets/reading-badge.png",
+         ratings: { atmosphere:7, staff:7, city:4, ground:6, food:6, location:3, character:7, people:7 }
+      },
+
+
+       {
+        name: "St Andrew's,",
+         addr: {
+    line1: "Cattell Road,",   
+    town: "Birmingham",
+    county: "West Midlands",
+    postcode: "B9 4RL"
+  },
+        visit: "41",
+        date: "05/03/2023",
+        club: "Birmingham City",
+        lat: 52.475833,   
+        lng: -1.868056,  
+        badge: "assets/birmingham-badge.png",
+        ratings: { atmosphere:4, staff:5, city:6, ground:4, food:5, location:5, character:5, people:4 }
+      },
+
+ {
+        name: "Loftus Road,",
+         addr: {
+    line1: "South Africa Road,",   
+    town: "Shepherds Bush",
+    county: "Greater London",
+    postcode: "W12 7PJ"
+  },
+        visit: "42",
+        date: "11/03/2023",
+        club: "Queens Park Rangers",
+        lat:  51.509167,  
+        lng: -0.232222,   
+        badge: "assets/qpr-badge.png",
+         ratings: { atmosphere:7, staff:5, city:4, ground:7, food:4, location:6, character:4, people:7 }
+      },
+
+{
+        name: "London Road,",
+         addr: {
+    line1: "London Road,",   
+    town: "Peterborough",
+    county: "Cambridgeshire",
+    postcode: "PE2 8AL"
+  },
+        visit: "43",
+        date: "25/03/2023",
+        club: "Peterborough United",
+        lat: 52.564722,
+        lng: -0.240278,    
+        badge: "assets/peterborough-badge.png",
+        ratings: { atmosphere:9, staff:7, city:8, ground:6, food:5, location:7, character:8, people:5 }
+      },
+
+        
+{
+        name: "Britannia Stadium,",
+         addr: {
+    line1: "Stanley Matthews Way,",   
+    town: "Stoke-on-Trent",
+    county: "Staffordshire",
+    postcode: "ST4 4EG"
+  },
+        visit: "44",
+        date: "02/04/2023",  
+        club: "Stoke City",
+        lat: 52.988333, 
+        lng: -2.175556,   
+        badge: "assets/stoke-badge.png",
+        ratings: { atmosphere:4, staff:6, city:4, ground:7, food:7, location:4, character:5, people:5 }
+      },
+
+    {
+        name: "Brisbane Road,",
+         addr: {
+    line1: "Brisbane Road,",   
+    town: "Leyton",
+    county: "Greater London",
+    postcode: "E10 5NF"
+  },
+        visit: "45",
+        date: "10/04/2023",
+        club: "Leyton Orient",  
+        lat: 51.560278, 
+        lng: -0.012778,   
+        badge: "assets/leyton-orient-badge.png",
+        ratings: { atmosphere:7, staff:5, city:4, ground:5, food:10, location:2, character:5, people:5 }
+      },
+
+    
+    {
+        name: "St James' Park,",
+         addr: {
+    line1: "Barrack Road,",   
+    town: "Newcastle upon Tyne",
+    county: "Tyne and Wear",
+    postcode: "NE1 4ST"
+  },
+        visit: "46",
+        date: "16/04/2023",
+        club: "Newcastle United",  
+        lat: 54.975556, 
+        lng: -1.621667,   
+        badge: "assets/newcastle-badge.png",
+        ratings: { atmosphere:7, staff:6, city:8, ground:7, food:5, location:8, character:9, people:6 }
+      },
+
+             {
+        name: "Valley Parade,",
+         addr: {
+    line1: "Valley Parade,",   
+    town: "Bradford",
+    county: "West Yorkshire",
+    postcode: "BD8 7DY"
+  },
+        visit: "47",
+        date: "22/04/2023",
+        club: "Bradford City",
+        lat: 53.804167, 
+        lng: -1.758889,   
+        badge: "assets/bradford-badge.png",
+        ratings: { atmosphere:6, staff:2, city:4, ground:4, food:4, location:6, character:8, people:4 }
+      },
+
+                {
+        name: "Selhurst Park,",
+         addr: {
+    line1: "Whitehorse Lane,",   
+    town: "Selhurst",
+    county: "Greater London",
+    postcode: "SE25 6PU"
+  },
+        visit: "48",
+        date: "03/05/2023",
+        club: "Crystal Palace",
+        lat:  51.398333,
+        lng: -0.085556,   
+        badge: "assets/crystal-palace-badge.png",
+        ratings: { atmosphere:9, staff:6, city:2, ground:5, food:5, location:6, character:9, people:5 }
+      },
+            {
+        name: "Sincil Bank Stadium,",
+         addr: {
+    line1: "Sincil Bank,",   
+    town: "Lincoln",
+    county: "Lincolnshire",
+    postcode: "LN5 8LD"
+  },
+        visit: "49",
+        date: "07/05/2023",
+        club: "Lincoln City",
+        lat: 53.218333,   
+        lng: -0.540833,   
+        badge: "assets/lincoln-badge.png",
+        ratings: { atmosphere:6, staff:5, city:7, ground:6, food:5, location:7, character:5, people:5 }
+      },
+
+    
+           {
+        name: "Gallagher Stadium",
+         addr: {
+    line1: "James Whatman Way",
+    town: "Maidstone",
+    county: "Kent",
+    postcode: "ME14 1LQ"
+  },    
+        visit: "50",
+        date: "08/07/2023",
+        club: "Maidstone United",
+        lat: 51.27979,
+        lng:  0.5163,
+        badge: "assets/maidstone-united-badge.png",
+        ratings: { atmosphere:4, staff:7, city:5, ground:5, food:9, location:6, character:4, people:6 }
+      },
+              {
+        name: "Bauvill Stadium", 
+        addr: {
+    line1: "Maidstone Road",
+    town: "Chatham",
+    county: "Kent",
+    postcode: "ME4 6LR"
+  },    
+        visit: "51",
+        date: "14/07/2023",
+        club: "Chatham Town",
+        lat: 51.36861,
+        lng:  0.52139,
+        badge: "assets/chatham-town-badge.png",
+        ratings: { atmosphere:5, staff:6, city:5, ground:7, food:5, location:7, character:5, people:5 }
+      },
+
+                   {
+        name: "The Den", 
+        addr: {
+    line1: "Zampa Road",
+    town: "Bermondsey",
+    county: "Greater London",
+    postcode: "SE16 3LN"
+  },    
+        visit: "52",
+        date: "25/07/2023",
+        club: "Millwall",
+        lat: 51.485833,   
+        lng:  -0.050833,
+        badge: "assets/millwall-badge.png",
+        ratings: { atmosphere:8, staff:8, city:1, ground:6, food:4, location:10, character:9, people:2 }
+      },
+
+        
+                   {
+        name: "Coventry Building Society Arena", 
+        addr: {
+    line1: "Judds Lane",
+    town: "Coventry",
+    county: "West Midlands",
+    postcode: "CV6 6AQ"
+  },    
+        visit: "53",
+        date: "12/08/2023",
+        club: "Coventry City", 
+        lat: 52.448056,   
+        lng:  -1.495556,
+        badge: "assets/coventry-badge.png",
+        ratings: { atmosphere:7, staff:3, city:7, ground:5, food:3, location:4, character:5, people:5 }
+      },
+
+           
+                   {
+        name: "Home Park", 
+        addr: {
+    line1: "Mayflower Drive",
+    town: "Plymouth",
+    county: "Devon",
+    postcode: "PL2 3DQ"
+  },    
+        visit: "54",
+        date: "19/08/2023",
+        club: "Plymouth Argyle",
+        lat: 50.388056,    
+        lng:  -4.150833,
+        badge: "assets/plymouth-badge.png",
+        ratings: { atmosphere:7, staff:6, city:6, ground:5, food:5, location:4, character:7, people:6 }
+      },
+
+                     {
+        name: "Riverside Stadium", 
+        addr: {
+    line1: "Middlehaven",
+    town: "Middlesbrough",
+    county: "North Yorkshire",
+    postcode: "TS3 6RS"
+  },   
+        visit: "55",
+        date: "17/09/2023",
+        club: "Middlesbrough", 
+        lat: 54.578333,    
+        lng:  -1.216944,
+        badge: "assets/middlesbrough-badge.png",
+        ratings: { atmosphere:5, staff:5, city:4, ground:7, food:7, location:6, character:6, people:7 }
+      },
+
+                       {
+        name: "Bloomfield Road", 
+        addr: {
+    line1: "Seasiders Way",
+    town: "Blackpool",
+    county: "Lancashire",
+    postcode: "FY1 6JJ"
+  },   
+        visit: "56",
+        date: "23/09/2023",
+        club: "Blackpool", 
+        lat: 53.804722,    
+        lng:  -3.048056,
+        badge: "assets/blackpool-badge.png",
+         ratings: { atmosphere:7, staff:8, city:7, ground:5, food:6, location:8, character:4, people:6 }
+      },
+
+                         {
+        name: "Ewood Park", 
+        addr: {
+    line1: "Nuttall Street",
+    town: "Blackburn",
+    county: "Lancashire",
+    postcode: "BB2 4JF"
+  },   
+        visit: "57",
+        date: "21/10/2023",
+        club: "Blackburn Rovers",  
+        lat: 53.728611,   
+        lng:  -2.489167,
+        badge: "assets/blackburn-badge.png",
+        ratings: { atmosphere:5, staff:5, city:4, ground:6, food:5, location:4, character:7, people:4 }
+      },
+
+                        {
+        name: "Stadium of Light", 
+        addr: {
+    line1: "Monkwearmouth",
+    town: "Sunderland",
+    county: "Tyne and Wear",
+    postcode: "SR5 1SU"
+  },   
+        visit: "58",
+        date: "28/10/2023",
+        club: "Sunderland",
+        lat: 54.914429,     
+        lng:  -1.388173,
+        badge: "assets/sunderland-badge.png",
+         ratings: { atmosphere:8, staff:2, city:3, ground:8, food:5, location:5, character:8, people:6 }
+      },
+
+                    {
+        name: "City Ground", 
+        addr: {
+    line1: "Pavilion Road",
+    town: "Nottingham",
+    county: "Nottinghamshire",
+    postcode: "NG2 5FJ"
+  },   
+        visit: "59",
+        date: "19/11/2023",
+        club: "Nottingham Forest",  
+        lat: 52.94,    
+        lng:  -1.132778,
+        badge: "assets/nottingham-forest-badge.png",
+        ratings: { atmosphere:6, staff:4, city:7, ground:4, food:6, location:8, character:8, people:5 }
+      },
+
+                     {
+        name: "Turf Moor", 
+        addr: {
+    line1: "52-56 Harry Potts Way",
+    town: "Burnley",
+    county: "Lancashire",
+    postcode: "BB10 4BX"
+  },   
+        visit: "60",
+        date: "02/12/2023",
+        club: "Burnley",
+        lat: 53.789167,  
+        lng:  -2.230278, 
+        badge: "assets/burnley-badge.png",
+        ratings: { atmosphere:9, staff:6, city:5, ground:8, food:5, location:7, character:10, people:9 }
+      },
+
+                      {
+        name: "Kirklees Stadium", 
+        addr: {
+    line1: "Stadium Way",
+    town: "Huddersfield",
+    county: "West Yorkshire",
+    postcode: "HD1 6PX"
+  },   
+        visit: "61",
+        date: "09/12/2023",
+        club: "Huddersfield Town",
+        lat:  53.654167,   
+        lng:  -1.768333, 
+        badge: "assets/huddersfield-badge.png",
+        ratings: { atmosphere:4, staff:6, city:5, ground:6, food:5, location:6, character:5, people:7 }
+      },
+
+                    {
+        name: "Elland Road", 
+        addr: {
+    line1: "Beeston",
+    town: "Leeds",
+    county: "West Yorkshire",
+    postcode: "LS11 0ES"
+  },   
+        visit: "62",
+        date: "27/01/2024",
+        club: "Leeds United",
+        lat:  53.777778,    
+        lng:  -1.572222, 
+        badge: "assets/leeds-badge.png",
+        ratings: { atmosphere:9, staff:7, city:4, ground:6, food:6, location:3, character:9, people:8 }
+      },
+
+                  {
+        name: "Sixfields Stadium", 
+        addr: {
+    line1: "Upton Way",
+    town: "Northampton",
+    county: "Northamptonshire",
+    postcode: "NN5 5QA"
+  },   
+        visit: "63",
+        date: "10/02/2024",
+        club: "Northampton Town",  
+        lat:  52.235278,     
+        lng:  -0.933333, 
+        badge: "assets/northampton-badge.png",
+        ratings: { atmosphere:4, staff:5, city:4, ground:4, food:3, location:3, character:5, people:7 }
+      },
+
+                         {
+        name: "Glanford Park", 
+        addr: {
+    line1: "Jack Brownsword Way",
+    town: "Scunthorpe",
+    county: "Lincolnshire",
+    postcode: "DN15 8TD"
+  },   
+        visit: "64",
+        date: "16/03/2024",
+        club: "Scunthorpe United",  
+        lat:  53.586667,     
+        lng:  -0.695278,
+        badge: "assets/scunthorpe-badge.png",
+        ratings: { atmosphere:8, staff:5, city:4, ground:6, food:5, location:3, character:4, people:4 }
+      },
+
+                        {
+        name: "Cardiff City Stadium", 
+        addr: {
+    line1: "Leckwith Road",
+    town: "Cardiff",
+    county: "South Glamorgan",
+    postcode: "CF11 8AZ"
+  },   
+        visit: "65",
+        date: "29/03/2024",
+        club: "Cardiff City",
+        lat:  51.472781,     
+        lng:  -3.203061, 
+        badge: "assets/cardiff-badge.png",
+        ratings: { atmosphere:7, staff:8, city:4, ground:5, food:5, location:5, character:7, people:9 }
+      },
+
+                    {
+        name: "Deepdale", 
+        addr: {
+    line1: "Sir Tom Finney Way",
+    town: "Preston",
+    county: "Lancashire",
+    postcode: "PR1 6RU"
+  },   
+        visit: "66",
+        date: "13/04/2024",
+        club: "Preston North End",
+        lat:  53.772222, 
+        lng:  -2.688500, 
+        badge: "assets/preston-badge.png",
+        ratings: { atmosphere:4, staff:2, city:6, ground:7, food:5, location:5, character:6, people:6 }
+      },
+
+                 {
+        name: "Liberty Stadium", 
+        addr: {
+    line1: "Landore",
+    town: "Swansea",
+    county: "West Glamorgan",
+    postcode: "SA1 2FA"
+  },   
+        visit: "67",
+        date: "20/04/2024",
+        club: "Swansea City",
+        lat: 51.6429,     
+        lng:  -3.9350, 
+        badge: "assets/swansea-badge.png",
+        ratings: { atmosphere:4, staff:6, city:6, ground:6, food:5, location:5, character:4, people:6 }
+      },
+
+
+               {
+        name: "New York Stadium", 
+        addr: {
+    line1: "New York Way",
+    town: "Rotherham",
+    county: "South Yorkshire",
+    postcode: "S60 1FJ"
+  },   
+        visit: "68",
+        date: "04/05/2024",
+        club: "Rotherham United",
+        lat:   53.42688,
+        lng:   -1.36246,
+        badge: "assets/rotherham-badge.png",
+        ratings: { atmosphere:7, staff:7, city:4, ground:6, food:5, location:7, character:4, people:8 }
+      },
+
+             {
+        name: "Kassam Stadium", 
+        addr: {
+    line1: "Grenoble Road",
+    town: "Oxford",
+    county: "Oxfordshire",
+    postcode: "OX4 4XP"
+  },   
+        visit: "69",
+        date: "31/08/2024",   
+        club: "Oxford United",
+        lat:  51.716389,    
+        lng:  -1.208056, 
+        badge: "assets/oxford-badge.png",
+        ratings: { atmosphere:6, staff:5, city:7, ground:6, food:6, location:3, character:6, people:8 }
+      },
+
+             {
+        name: "Hillsborough Stadium", 
+        addr: {
+    line1: "Leppings Lane",
+    town: "Sheffield",
+    county: "South Yorkshire",
+    postcode: "S6 1SW"
+  },   
+        visit: "70",
+        date: "14/09/2024",
+        club: "Sheffield Wednesday",
+        lat:  53.411389,    
+        lng:  -1.500556, 
+        badge: "assets/sheffield-wednesday-badge.png",
+        ratings: { atmosphere:10, staff:6, city:7, ground:5, food:5, location:6, character:10, people:10 }
+      },
+
+                    {
+        name: "Ashton Gate Stadium", 
+        addr: {
+    line1: "Ashton Road",
+    town: "Bristol",
+    county: "County of Bristol",
+    postcode: "BS3 2EJ"
+  },  
+        visit: "71",
+        date: "21/09/2024",
+        club: "Bristol City",
+        lat:  51.44019849617216,    
+        lng:  -2.620254079533649,   
+        badge: "assets/bristol-city-badge.png",
+        ratings: { atmosphere:6, staff:5, city:4, ground:4, food:5, location:3, character:5, people:7 }
+      },
+
+                {
+        name: "Brick Community Stadium", 
+        addr: {
+    line1: "Robin Park Road",
+    town: "Wigan",
+    county: "Greater Manchester",
+    postcode: "WN5 0UH"
+  },  
+        visit: "72",
+        date: "28/09/2024",
+        club: "Wigan Athletic",
+        lat:  53.54773992846143, 
+        lng:  -2.654104153985151, 
+        badge: "assets/wigan-badge.png",
+        ratings: { atmosphere:3, staff:6, city:5, ground:5, food:7, location:6, character:4, people:7 }
+      },
+     {
+        name: "Hayes Lane", 
+        addr: {
+    line1: "Hayes Lane",
+    town: "Bromley",
+    county: "Greater London",
+    postcode: "BR2 9EF"
+  },  
+        visit: "73",
+        date: "01/10/2024",
+        club: "Bromley",
+        lat:  51.390040859833306, 
+        lng:  0.020928726439424644, 
+        badge: "assets/bromley-badge.png",
+        ratings: { atmosphere:4, staff:8, city:5, ground:7, food:7, location:4, character:5, people:4 }
+      },
+
+             {
+        name: "Keepmoat Stadium", 
+        addr: {
+    line1: "Stadium Way",
+    town: "Doncaster",
+    county: "South Yorkshire",
+    postcode: "DN4 5JW"
+  },  
+        visit: "74",
+        date: "12/10/2024",
+        club: "Doncaster Rovers",
+        lat:  53.50969018778023, 
+        lng:  -1.113676954394299,
+        badge: "assets/doncaster-badge.png",
+        ratings: { atmosphere:7, staff:5, city:4, ground:5, food:5, location:4, character:5, people:8 }
+      },
+
+            {
+        name: "Toughsheet Community Stadium", 
+        addr: {
+    line1: "Burnden Way",
+    town: "Bolton",
+    county: "Greater Manchester",
+    postcode: "BL6 6JW"
+  },  
+        visit: "75",
+        date: "19/10/2024",
+        club: "Bolton Wanderers",
+        lat:  53.58067039733431, 
+        lng:  -2.5356110166209747, 
+        badge: "assets/bolton-badge.png",
+        ratings: { atmosphere:6, staff:5, city:5, ground:4, food:5, location:7, character:6, people:8 }
+      },
+
+                {
+        name: "Huish Park", 
+        addr: {
+    line1: "Lufton Way",
+    town: "Yeovil",
+    county: "Somerset",
+    postcode: "BA22 8YF"
+  },  
+        visit: "76",
+        date: "26/10/2024",
+        club: "Yeovil Town",
+        lat:  50.950299571236805,    
+        lng:  -2.6739568950960035,
+        badge: "assets/yeovil-badge.png",
+        ratings: { atmosphere:7, staff:7, city:6, ground:6, food:6, location:3, character:5, people:7 }
+      },
+
+                {
+        name: "St James' Park", 
+        addr: {
+    line1: "Stadium Way",
+    town: "Exeter",
+    county: "Devon",
+    postcode: "EX4 6PX"
+  },  
+        visit: "77",
+        date: "09/11/2024",
+        club: "Exeter City",
+        lat:   50.73077396287153, 
+        lng:  -3.521061621941901, 
+        badge: "assets/exeter-badge.png",
+        ratings: { atmosphere:6, staff:6, city:6, ground:4, food:6, location:6, character:8, people:7 }
+      },
+
+                {
+        name: "Moss Lane", 
+        addr: {
+    line1: "London Road",
+    town: "Macclesfield",
+    county: "Cheshire",
+    postcode: "SK11 7SP"
+  },  
+        visit: "78",
+        date: "23/11/2024",
+        club: "Macclesfield",  
+        lat:  53.24297337624932,      
+        lng:  -2.127071444484879,
+        badge: "assets/macclesfield-badge.png",
+        ratings: { atmosphere:6, staff:5, city:4, ground:4, food:4, location:5, character:4, people:6 }
+      },
+
+       
+                {
+        name: "Blundell Park", 
+        addr: {
+    line1: "Blundell Park",
+    town: "Cleethorpes",
+    county: "Lincolnshire",
+    postcode: "DN35 7PY"
+  },  
+        visit: "79",
+        date: "18/01/2025",
+        club: "Grimsby Town",  
+        lat:  53.57022189605343,     
+        lng:  -0.04643795023105528, 
+        badge: "assets/grimsby-badge.png",
+        ratings: { atmosphere:4, staff:5, city:3, ground:5, food:5, location:4, character:7, people:7 }
+      },
+
+             {
+        name: "Pirelli Stadium", 
+        addr: {
+    line1: "Princess Way",
+    town: "Burton on Trent",
+    county: "Staffordshire",
+    postcode: "DE13 0AR"
+  },  
+        visit: "80",
+        date: "25/01/2025",
+        club: "Burton Albion",
+        lat:  52.82196069411042,     
+        lng:  -1.6268494651143781, 
+        badge: "assets/burton-badge.png",
+        ratings: { atmosphere:4, staff:5, city:5, ground:4, food:4, location:4, character:6, people:6 }
+      },
+
+              {
+        name: "Oakwell", 
+        addr: {
+    line1: "17 Grove Street",
+    town: "Barnsley",
+    county: "South Yorkshire",
+    postcode: "S71 1ET"
+  },  
+        visit: "81",
+        date: "01/02/2025",
+        club: "Barnsley",
+        lat:  53.552314075861695, 
+        lng:  -1.4676694239876122, 
+        badge: "assets/barnsley-badge.png",
+        ratings: { atmosphere:5, staff:8, city:4, ground:6, food:9, location:6, character:5, people:7 }
+      },
+
+      
+              {
+        name: "Edgeley Park", 
+        addr: {
+    line1: "Hardcastle Road",
+    town: "Stockport",
+    county: "Greater Manchester",
+    postcode: "SK9 3DD"
+  },  
+        visit: "82",
+        date: "08/02/2025",  
+        club: "Stockport County",
+        lat:  53.39969485183294, 
+        lng:  -2.1663008919513187,
+        badge: "assets/stockport-badge.png",
+        ratings: { atmosphere:10, staff:7, city:4, ground:5, food:6, location:8, character:6, people:6 }
+      },
+
+                     {
+        name: "Croud Meadow", 
+        addr: {
+    line1: "Oteley Road",
+    town: "Shrewsbury",
+    county: "Shropshire",
+    postcode: "SY2 6ST"
+  },  
+        visit: "83",
+        date: "15/02/2025",
+        club: "Shrewsbury Town",  
+        lat:  52.68871799095939,    
+        lng:  -2.749338681468261, 
+        badge: "assets/shrewsbury-badge.png",
+        ratings: { atmosphere:4, staff:5, city:6, ground:6, food:7, location:4, character:6, people:6 }
+      },
+
+                        {
+        name: "Racecourse Ground", 
+        addr: {
+    line1: "Mold Road",
+    town: "Wrexham",
+    county: "Clwyd",
+    postcode: "LL11 2AH"
+  },  
+        visit: "84",
+        date: "01/03/2025",
+        club: "Wrexham",  
+        lat:  53.051927173358955,    
+        lng:  -3.0036856428075667,
+        badge: "assets/wrexham-badge.png",
+        ratings: { atmosphere:6, staff:6, city:4, ground:6, food:5, location:8, character:7, people:6 }
+      },
+
+    
+                    {
+        name: "Memorial Ground", 
+        addr: {
+    line1: "Filton Avenue",
+    town: "Bristol",
+    county: "County of Bristol",
+    postcode: "BS7 0AQ"
+  },  
+        visit: "85",
+        date: "08/03/2025",
+        club: "Bristol Rovers",
+        lat:  51.48628438702192,   
+        lng:  -2.583138347011077,
+        badge: "assets/bristol-rovers-badge.png",
+        ratings: { atmosphere:6, staff:7, city:4, ground:5, food:8, location:5, character:6, people:6 }
+      },
+
+                    {
+        name: "Twerton Park", 
+        addr: {
+    line1: "105 High St",
+    town: "Bath",
+    county: "Somerset",
+    postcode: "BA2 1DB"
+  },  
+        visit: "86",
+        date: "15/03/2025",
+        club: "Bath City",
+        lat:  51.37889614166447, 
+        lng:  -2.3951748222791056, 
+        badge: "assets/bath-badge.png",
+        ratings: { atmosphere:3, staff:5, city:9, ground:3, food:5, location:4, character:4, people:7 }
+      },
+
+                  {
+        name: "Bescot Stadium", 
+        addr: {
+    line1: "Bescot Crescent",
+    town: "Walsall",
+    county: "West Midlands",
+    postcode: "WS1 4SA"
+  },  
+        visit: "87",
+        date: "29/03/2025",
+        club: "Walsall",
+        lat:  52.56539451327437,     
+        lng:  -1.9903837483959244,
+        badge: "assets/walsall-badge.png",
+        ratings: { atmosphere:8, staff:8, city:4, ground:6, food:6, location:7, character:7, people:7 }
+      },
+
+          
+                  {
+        name: "Whaddon Road", 
+        addr: {
+    line1: "Whaddon Road",
+    town: "Cheltenham",
+    county: "Gloucestershire",
+    postcode: "GL52 5NA"
+  },  
+        visit: "88",
+        date: "05/04/2025",
+        club: "Cheltenham Town",
+        lat:   51.906111, 
+        lng:  -2.060278, 
+        badge: "assets/cheltenham-badge.png",
+        ratings: { atmosphere:2, staff:4, city:6, ground:4, food:7, location:4, character:5, people:7 }
+      },
+
+                       {
+        name: "Vale Park", 
+        addr: {
+    line1: "Hamil Road",
+    town: "Stoke-on-Trent",
+    county: "Staffordshire",
+    postcode: "ST6 1AW"
+  },  
+        visit: "89",
+        date: "12/04/2025",  
+        club: "Port Vale",
+        lat: 53.05021239810533, 
+        lng:  -2.1926365708634252,  
+        badge: "assets/port-vale-badge.png",
+        ratings: { atmosphere:7, staff:8, city:5, ground:6, food:6, location:5, character:5, people:8 }
+      },
+
+
+                           {
+        name: "Stadium MK", 
+        addr: {
+    line1: "Stadium Way",
+    town: "Milton Keynes",
+    county: "Buckinghamshire",
+    postcode: "MK1 1ST"
+  },  
+        visit: "90",
+        date: "18/04/2025",
+        club: "Milton Keynes Dons",   
+        lat: 52.0097807576974, 
+        lng:  -0.7335020021016921, 
+        badge: "assets/mk-dons-badge.png",
+        ratings: { atmosphere:2, staff:5, city:5, ground:9, food:7, location:6, character:4, people:5 }
+      },
+
+
+                         {
+        name: "Field Mill", 
+        addr: {
+    line1: "Quarry Lane",
+    town: "Mansfield",
+    county: "Nottinghamshire",
+    postcode: "NG18 5DA"
+  },  
+        visit: "91",
+        date: "21/04/2025",
+        club: "Mansfield Town",   
+        lat: 53.13821869771928, 
+        lng:  -1.2007374161138753, 
+        badge: "assets/mansfield-badge.png",
+        ratings: { atmosphere:3, staff:8, city:4, ground:5, food:5, location:8, character:4, people:9 }
+      },
+
+             {
+        name: "Spotland Stadium", 
+        addr: {
+    line1: "Sandy Lane",
+    town: "Rochdale",
+    county: "Greater Manchester",
+    postcode: "OL11 5DR"
+  },  
+        visit: "92",
+        date: "26/04/2025",
+        club: "Rochdale",
+        lat: 53.62083459789936,  
+        lng:  -2.179988593007802,
+        badge: "assets/rochdale-badge.png",
+        ratings: { atmosphere:6, staff:6, city:5, ground:6, food:3, location:4, character:6, people:7 }
+      },
+
+
+           
+             {
+        name: "Brunton Park", 
+        addr: {
+    line1: "Warwick Road",
+    town: "Carlisle",
+    county: "Cumbria",
+    postcode: "CA1 1LL"
+  },  
+        visit: "93",
+        date: "03/05/2025",
+        club: "Carlisle United",
+        lat: 54.895602508806185, 
+        lng:  -2.9135884028329437, 
+        badge: "assets/carlisle-badge.png",
+        ratings: { atmosphere:2, staff:6, city:7, ground:5, food:8, location:6, character:4, people:7 }
+      },
+
+                  {
+        name: "Stadio Diego Armando Maradona",
+         addr: {
+    line1: "Via Giambattista Marino",   
+    town: "Napoli",
+    county: "Campagnia",
+    postcode: "80125"
+  },
+        visit: "94",
+        date: "04/07/2025",
+        club: "SSC Napoli", 
+        lat: 40.828009249793226,  
+        lng:  14.193037146824057, 
+        badge: "assets/napoli-badge.png",
+        ratings: { atmosphere:5, staff:5, city:3, ground:4, food:5, location:2, character:7, people:5 }
+      },
+
+             {
+        name: "The Crown Ground", 
+        addr: {
+    line1: "Livingstone Road",
+    town: "Accrington",
+    county: "Lancashire",
+    postcode: "BB5 5BX"
+  },  
+        visit: "95",
+        date: "19/07/2025",
+        club: "Accrington Stanley",  
+        lat: 53.765278,  
+        lng:  -2.370833, 
+        badge: "assets/accrington-badge.png",
+        ratings: { atmosphere:4, staff:10, city:5, ground:6, food:5, location:4, character:6, people:9 }
+      },
+
+
+             {
+        name: "Holker Street", 
+        addr: {
+    line1: "Wilkie Road",
+    town: "Barrow-in-Furness",
+    county: "Cumbria",
+    postcode: "LA14 5UW"
+  }, 
+        visit: "96",
+        date: "26/07/2025",
+        club: "Barrow",
+        lat:  54.123333, 
+        lng:  -3.235, 
+        badge: "assets/barrow-badge.png",
+        ratings: { atmosphere:4, staff:6, city:4, ground:4, food:1, location:6, character:4, people:6 }
+      },
+
+
+            {
+        name: "Everton Stadium", 
+        addr: {
+    line1: "Bramley-Moore Dock",
+    town: "Liverpool",
+    county: "Merseyside",
+    postcode: "L3 0BW"
+  }, 
+        visit: "97",
+        date: "09/08/2025",
+        club: "Everton",
+        lat: 53.4251,
+        lng: -3.0028, 
+        badge: "assets/everton-badge.png",
+        ratings: { atmosphere:9, staff:7, city:9, ground:7, food:9, location:7, character:8, people:9 }
+  
+      },
+
+             {
+        name: "Boundary Park", 
+        addr: {
+    line1: "Furtherwood Road",
+    town: "Oldham",
+    county: "Greater Manchester",
+    postcode: "OL1 2PB"
+  }, 
+        visit: "98",
+        date: "16/08/2025",
+        club: "Oldham Athletic",
+        lat: 53.555278,   
+        lng: -2.128611, 
+        badge: "assets/oldham-badge.png",
+        ratings: { atmosphere:7, staff:7, city:6, ground:6, food:5, location:4, character:7, people:10 }
+      },
+              
+             {
+        name: "Meadow Lane", 
+        addr: {
+    line1: "Meadow Lane",
+    town: "Nottingham",
+    county: "Nottinghamshire",
+    postcode: "NG2 3HJ"
+  }, 
+        visit: "99",
+        date: "23/08/2025",
+        club: "Notts County",
+        lat: 52.94272370218313, 
+        lng: -1.1371622743417065, 
+        badge: "assets/notts-county-badge.png",
+        ratings: { atmosphere:8, staff:5, city:7, ground:5, food:5, location:7, character:7, people:6 }
+      },
+               {
+        name: "The Exercise Stadium", 
+        addr: {
+    line1: "59 Wetherby Road",
+    town: "Harrogate",
+    county: "North Yorkshire",
+    postcode: "HG2 7SA"
+  }, 
+        visit: "100",
+        date: "06/09/2025",
+        club: "Harrogate Town",
+        lat: 53.991616567808734, 
+        lng: -1.514775460282479, 
+        badge: "assets/harrogate-badge.png",
+        ratings: { atmosphere:4, staff:5, city:7, ground:6, food:9, location:6, character:4, people:6 }
+      },
+                      {
+        name: "The Mornflake Stadium", 
+        addr: {
+    line1: "Gresty Road",
+    town: "Crewe",
+    county: "Cheshire",
+    postcode: "CW2 6EB"
+  }, 
+        visit: "101",
+        date: "13/09/2025",
+        club: "Crewe Alexander",
+        lat: 53.08752838697885, 
+        lng: -2.4356885132478547, 
+        badge: "assets/crewe-badge.png",
+        ratings: { atmosphere:4, staff:6, city:6, ground:5, food:7, location:9, character:5, people:5 }
+      },
+
+                         {
+        name: "Gateshead International Stadium", 
+        addr: {
+    line1: "Neilson Road",
+    town: "Gateshead",
+    county: "Tyne and Wear",
+    postcode: "NE10 0EF"
+  }, 
+        visit: "102",
+        date: "20/09/2025",
+        club: "Gateshead",
+        lat: 54.960801573548544, 
+        lng: -1.5809294312750835, 
+        badge: "assets/gateshead-badge.png",
+        ratings: { atmosphere:4, staff:7, city:5, ground:4, food:5, location:4, character:2, people:6 }
+      },
+
+         
+                          {
+        name: "Prenton Park", 
+        addr: {
+    line1: "Preston Road West",
+    town: "Birkenhead",
+    county: "Merseyside",
+    postcode: "CH42 9PY"
+  }, 
+        visit: "103",
+        date: "-",
+        club: "Tranmere Rovers",
+        lat: 53.37384205329089, 
+        lng: -3.0325026460085853, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+                                                 {
+        name: "Peninsula Stadium", 
+        addr: {
+    line1: "Moor Lane",
+    town: "Salford",
+    county: "Greater Manchester",
+    postcode: "M7 3PZ"
+  }, 
+        visit: "104",
+        date: "-",
+        club: "Salford City",
+        lat: 53.513661166593685, 
+        lng: -2.276766629381433, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+                                  {
+        name: "The Hive", 
+        addr: {
+    line1: "Camrose Avenue",
+    town: "Edgware",
+    county: "Greater London",
+    postcode: "HA8 6AG"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Barnet",
+        lat: 51.6027009537491, 
+        lng: -0.29174202812320976, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+                                         {
+        name: "Gigg Lane", 
+        addr: {
+    line1: "Gigg Lane",
+    town: "Bury",
+    county: "Greater Manchester",
+    postcode: "BL9 9HR"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Bury",
+        lat: 53.580537476743174, 
+        lng: -2.294833366727486, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+                                    {
+        name: "Highbury Stadium", 
+        addr: {
+    line1: "Park Avenue",
+    town: "Fleetwood",
+    county: "Lancashire",
+    postcode: "FY7 6SP"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Fleetwood Town",
+        lat: 53.91668485683906, 
+        lng: -3.0248645922906308, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+                                 {
+        name: "Victoria Park", 
+        addr: {
+    line1: "Clarence Road",
+    town: "Hartlepool",
+    county: "County Durham",
+    postcode: "TS24 8BZ"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Hartlepool United",
+        lat: 54.689156354911184, 
+        lng: -1.2126563528932983, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+      
+                                 {
+        name: "Mazuma Mobile Stadium", 
+        addr: {
+    line1: "Christie Way",
+    town: "Morecambe",
+    county: "Lancashire",
+    postcode: "LA4 4TB"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Morecambe",
+        lat: 54.06142813506716, 
+        lng: -2.867288882252718, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+
+                                 {
+        name: "Rodney Parade", 
+        addr: {
+    line1: "Stadium Way",
+    town: "Newport",
+    county: "Gwent",
+    postcode: "NP19 4PT"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Newport County",
+        lat: 51.58831495473995, 
+        lng: -2.9880288562014514, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+                                        {
+        name: "LNER Community Stadium", 
+        addr: {
+    line1: "Kathryn Avenue",
+    town: "York",
+    county: "North Yorkshire",
+    postcode: "YO32 9AF"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "York City",
+        lat: 53.984552419403904, 
+        lng: -1.052977059368489, 
+        badge: "assets/red-cross.png",
+        ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
+      },
+
+                                         {
+        name: "The EBB Stadium", 
+        addr: {
+    line1: "High Street",
+    town: "Aldershot",
+    county: "Hampshire",
+    postcode: "GU11 1TW"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Aldershot Town",
+        lat: 51.24844022428646, 
+        lng: -0.7547352668750255, 
+        badge: "assets/green-cross.png"
+      },
+
+                                         {
+        name: "Cressing Road", 
+        addr: {
+    line1: "Clockhouse Way",
+    town: "Braintree",
+    county: "Essex",
+    postcode: "CM7 3AL"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Braintree Town",
+        lat: 51.875415457283,
+        lng:  0.5728553831210909, 
+        badge: "assets/green-cross.png"
+      },
+
+         
+                                         {
+        name: "Melbourne Stadium", 
+        addr: {
+    line1: "Salerno Way",
+    town: "Chelmsford",
+    county: "Essex",
+    postcode: "CM1 2EH"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Chelmsford City",
+        lat: 51.75326681225563, 
+        lng: 0.45147482091990376, 
+        badge: "assets/green-cross.png"
+      },
+
+                                      {
+        name: "Deva Stadium", 
+        addr: {
+    line1: "Talbot Way",
+    town: "Chester",
+    county: "Cheshire",
+    postcode: "CH1 4LT"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Chester",
+        lat: 53.18927240662004, 
+        lng: -2.9233546904988477,
+        badge: "assets/green-cross.png"
+      },
+
+   
+                                      {
+        name: "Chigwell Construction Stadium", 
+        addr: {
+    line1: "Victoria Road",
+    town: "Dagenham",
+    county: "Essex",
+    postcode: "RM10 7XL"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Dagenham & Redbridge",
+        lat: 51.547869886419235, 
+        lng: 0.15989865138450537, 
+        badge: "assets/green-cross.png"
+      },
+
+      
+   
+                                      {
+        name: "Champion Hill", 
+        addr: {
+    line1: "Edgar Kail Way",
+    town: "Dulwich",
+    county: "Greater London",
+    postcode: "SE22 8BD"
+  }, 
+        visit: "-",
+        date: "-",
+        club: "Dulwich Hamlet",
+        lat: 51.46130392457622, 
+        lng: -0.08398681252892345, 
+        badge: "assets/green-cross.png"
+      },
+
+                                                {
+        name: "Kuflink Stadium", 
+        addr: {
+    line1: "Stonebridge Road",
+    town: "Gravesend",
+    county: "Kent",
+    postcode: "DA11 9GN",
+  },
+        visit: "-",
+        date: "-",
+        club: "Ebbsfleet United",
+        lat: 51.44958944369021, 
+        lng: 0.32228312806105247, 
+        badge: "assets/green-cross.png"
+      },
+
+                 
+                                                {
+        name: "Aggborough Stadium", 
+        addr: {
+    line1: "Hoo Road",
+    town: "Kidderminster",
+    county: "Worcestershire",
+    postcode: "DY10 1NB",
+  },
+        visit: "-",
+        date: "-",
+        club: "Kidderminster Harriers",
+        lat: 52.38041195668433, 
+        lng: -2.2426535036348096, 
+        badge: "assets/green-cross.png"
+      },
+
+                                                 {
+        name: "Plainmoor", 
+        addr: {
+    line1: "Plainmoor Road",
+    town: "Torquay",
+    county: "Devon",
+    postcode: "TQ1 3PS",
+  },
+        visit: "-",
+        date: "-",
+        club: "Torquay United",
+        lat: 50.476424153526494, 
+        lng: -3.5237641060855727, 
+        badge: "assets/green-cross.png"
+      },
+                                     {
+        name: "Grosvenor Vale", 
+        addr: {
+    line1: "Grosvenor Vale",
+    town: "Ruislip",
+    county: "Greater London",
+    postcode: "HA4 6JQ",
+  },
+        visit: "-",
+        date: "-",
+        club: "Wealdstone",
+        lat: 51.56943203828392, 
+        lng: -0.41660399322358055, 
+        badge: "assets/green-cross.png"
+      },
+
+                                               {
+        name: "Pittodrie Stadium", 
+        addr: {
+    line1: "Pittodrie Street",
+    town: "Aberdeen",
+    county: "Aberdeenshire",
+    postcode: "AB24 5QH",
+  },
+        visit: "-",
+        date: "-",
+        club: "Aberdeen",
+        lat: 57.159322002626425, 
+        lng: -2.088748493706598, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                                                {
+        name: "Stadio San Siro", 
+        addr: {
+    line1: "Piazzale Angelo Moratti",
+    town: "Milan",
+    county: "Lombardy",
+    postcode: "20151",
+  },
+        visit: "-",
+        date: "-",
+        club: "AC Milan & Inter Milan",
+        lat: 45.4781637335224, 
+        lng: 9.124001096018777, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                                        {
+        name: "Johann Cruyff Arena", 
+        addr: {
+    line1: "Johan Cruijff Boulevard, 1",
+    town: "Amsterdam",
+    county: "Noord-Holland",
+    postcode: "1101",
+  },
+        visit: "-",
+        date: "-",
+        club: "Ajax",
+        lat: 52.31439308110714,
+        lng:  4.941827344075773, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                                           {
+        name: "Riyadh Air Metropolitano", 
+        addr: {
+    line1: "Avenue de Luis Aragonés, 4",
+    town: "Madrid",
+    county: "Madrid",
+    postcode: "28022",
+  },
+        visit: "-",
+        date: "-",
+        club: "Atletico Madrid",
+        lat: 40.4362699203132, 
+        lng: -3.5994966531207133, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                                              {
+        name: "Allianz Arena", 
+        addr: {
+    line1: "Franz-Beckenbauer-Platz 5",
+    town: "Munich",
+    county: "Bavaria",
+    postcode: "80939",
+  },
+        visit: "-",
+        date: "-",
+        club: "Bayern Munich",
+        lat: 48.21888770835498, 
+        lng: 11.624684699077447, 
+        badge: "assets/yellow-cross.png"
+      },
+
+
+                                           {
+        name: "Signal Iduna Park", 
+        addr: {
+    line1: "Strobelallee 50",
+    town: "Dortmund",
+    county: "Nordrhein-Westphalia",
+    postcode: "44139",
+  },
+        visit: "-",
+        date: "-",
+        club: "Borussia Dortmund",
+        lat: 51.49264357095058, 
+        lng: 7.4518784431884395, 
+        badge: "assets/yellow-cross.png"
+      },
+                               {
+        name: "Celtic Park", 
+        addr: {
+    line1: "Janefield Street",
+    town: "Glasgow",
+    county: "Lanarkshire",
+    postcode: "G40 3RE",
+  },
+        visit: "-",
+        date: "-",
+        club: "Celtic",
+        lat: 55.84973672111389, 
+        lng: -4.205576086082395, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                              {
+        name: "Spotify Camp Nou", 
+        addr: {
+    line1: "Les Corts",
+    town: "Barcelona",
+    county: "Catalonia",
+    postcode: "08028",
+  },
+        visit: "-",
+        date: "-",
+        club: "Barcelona",
+        lat: 41.38099281698237, 
+        lng: 2.1228201568929914, 
+        badge: "assets/yellow-cross.png"
+      },
+
+
+
+                              {
+        name: "Estadio do Dragao", 
+        addr: {
+    line1: "Via Futebol Clube do Porto",
+    town: "Porto",
+    county: "Porto District",
+    postcode: "4350-415",
+  },
+        visit: "-",
+        date: "-",
+        club: "Porto",
+        lat: 41.16190967677008, 
+        lng: -8.583615578538652, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                          {
+        name: "Tynecastle Stadium", 
+        addr: {
+    line1: "McLeod Street",
+    town: "Edinburgh",
+    county: "Midlothian",
+    postcode: "EH11 2NL",
+  },
+        visit: "-",
+        date: "-",
+        club: "Hearts of Midlothian",
+        lat: 55.9390438463365, 
+        lng: -3.232403834697348, 
+        badge: "assets/yellow-cross.png"
+      },
+                               {
+        name: "Easter Road Stadium", 
+        addr: {
+    line1: "12 Albion Place",
+    town: "Edinburgh",
+    county: "Midlothian",
+    postcode: "EH7 5NQ",
+  },
+        visit: "-",
+        date: "-",
+        club: "Hibernian",
+        lat: 55.96190720547886, 
+        lng: -3.165259886912233, 
+        badge: "assets/yellow-cross.png"
+      },
+                                     {
+        name: "Allianz Stadium", 
+        addr: {
+    line1: "Corso Gaetano Scirea 50",
+    town: "Torino",
+    county: "Piedmont",
+    postcode: "10151",
+  },
+        visit: "-",
+        date: "-",
+        club: "Juventus",
+        lat: 45.109614453103795, 
+        lng: 7.641278125281732, 
+        badge: "assets/yellow-cross.png"
+
+      },
+
+                            {
+        name: "Fir Park", 
+        addr: {
+    line1: "15 Fir Park Street",
+    town: "Motherwell",
+    county: "North Lanarkshire",
+    postcode: "ML1 2QN",
+  },
+        visit: "-",
+        date: "-",
+        club: "Motherwell",
+        lat: 55.78042449485272, 
+        lng: -3.9801929763190254, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                            {
+        name: "Groupama Stadium", 
+        addr: {
+    line1: "10 Avenue Simone Veil",
+    town: "Lyon",
+    county: "Auvergne-Rhône-Alpes",
+    postcode: "69150",
+  },
+        visit: "-",
+        date: "-",
+        club: "Lyon",
+        lat: 45.765281859087054, 
+        lng: 4.982033550360254, 
+        badge: "assets/yellow-cross.png"
+      },
+                           {
+        name: "Orange Velodrome", 
+        addr: {
+    line1: "3 Boulevard Michelet",
+    town: "Marseille",
+    county: "Bouches-du-Rhône",
+    postcode: "13008",
+  },
+        visit: "-",
+        date: "-",
+        club: "Marseille",
+        lat: 43.26997256882795, 
+        lng: 5.395882717865411, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                  {
+        name: "Parc des Princes", 
+        addr: {
+    line1: "24 Rue du Commandant Guilbaud",
+    town: "Paris",
+    county: "Île-de-France",
+    postcode: "75016",
+  },
+        visit: "-",
+        date: "-",
+        club: "Paris Saint-Germain",
+        lat: 48.84150308034526, 
+        lng: 2.253057665769006, 
+        badge: "assets/yellow-cross.png"
+      },   
+            {
+        name: "Philips Stadion", 
+        addr: {
+    line1: "Frederiklaan 10A",
+    town: "Eindhoven",
+    county: "Noord-Brabant",
+    postcode: "5616",
+  },
+        visit: "-",
+        date: "-",
+        club: "PSV Eindhoven",
+        lat: 51.441834309870735, 
+        lng: 5.467512159277332, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                           {
+        name: "Ibrox", 
+        addr: {
+    line1: "150 Edmiston Drive",
+    town: "Glasgow",
+    county: "Lanarkshire",
+    postcode: "G51 2XD",
+  },
+        visit: "-",
+        date: "-",
+        club: "Rangers",
+        lat: 55.853206481338624,
+        lng: -4.309266308388143,
+        badge: "assets/yellow-cross.png"
+      },
+
+                                             {
+        name: "Bernabeu", 
+        addr: {
+    line1: "Avenue de Concha Espina, 1",
+    town: "Madrid",
+    county: "Madrid",
+    postcode: "28036",
+  },
+        visit: "-",
+        date: "-",
+        club: "Real Madrid",
+        lat: 40.45306885012407, 
+        lng: -3.6883257502877855, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                                           {
+        name: "Ramon Sanchez-Pizjuan Stadium", 
+        addr: {
+    line1: "Calle Sevilla Fútbol Club",
+    town: "Seville",
+    county: "Andalusia",
+    postcode: "41005",
+  },
+        visit: "-",
+        date: "-",
+        club: "Sevilla",
+        lat: 37.384081169269066, 
+        lng: -5.970594502324436, 
+        badge: "assets/yellow-cross.png"
+      },
+
+        
+                                           {
+        name: "Estadio do Luz", 
+        addr: {
+    line1: "Avenue Eusébio da Silva Ferreira",
+    town: "Lisbon",
+    county: "Lisbon",
+    postcode: "1500-313",
+  },
+        visit: "-",
+        date: "-",
+        club: "Benfica",
+        lat: 38.752726080197526, 
+        lng: -9.184690579225347, 
+        badge: "assets/yellow-cross.png"
+      },
+
+                                          {
+        name: "Estadio Jose Alvalade", 
+        addr: {
+    line1: "Rua Professor Fernando da Fonseca",
+    town: "Lisbon",
+    county: "Lisbon",
+    postcode: "1501-806",
+  },
+        visit: "-",
+        date: "-",
+        club: "Sporting",
+        lat: 38.76122584574533, 
+        lng: -9.160952047539656, 
+        badge: "assets/yellow-cross.png"
+      },
+
+     
+                                          {
+        name: "Stadio Olimpico", 
+        addr: {
+    line1: "Viale dei Gladiatori, 2",
+    town: "Rome",
+    county: "Lazio",
+    postcode: "00135",
+  },
+        visit: "-",
+        date: "-",
+        club: "Roma & Lazio",
+        lat: 41.9340191075115, 
+        lng: 12.454787605879826, 
+        badge: "assets/yellow-cross.png"
+      },
+      
+
+          // {
+       //// name: "MacHale Park",
+       //// visit: "-",
+        ////date: "-",
+       //// club: "Mayo GAA",
+       //// lat: 53.853398701297, 
+       //// lng: -9.286132639553042, 
+       //// badge: "assets/blue-cross.png"
+      ////},
+
+          // {
+       //// name: "Yankee Stadium",
+       //// visit: "-",
+        ////date: "-",
+       //// club: "New York Yankees",
+       //// lat: 40.82971260475592, 
+       //// lng: -73.92619054675215, 
+       //// badge: "assets/blue-cross.png"
+      ////},
+
+        ////  {
+       //// name: "Dodger Stadium",
+       //// visit: "-",
+       //// date: "-",
+      ////  club: "Los Angeles Dodgers",
+      ////  lat: 34.07394973577599, 
+      ////  lng: -118.23997593781623, 
+      ////  badge: "assets/blue-cross.png"
+     //// },
+
+        ////  {
+       //// name: "Fenway Park",
+       //// visit: "-",
+       //// date: "-",
+       //// club: "Boston Red Sox",
+       //// lat: 42.3466808806426, 
+       //// lng: -71.09718663156193, 
+       //// badge: "assets/blue-cross.png"
+     //// },
+
+        ////  {
+       ////name: "Wrigley Field",
+       //// visit: "-",
+       //// date: "-",
+       //// club: "Chicago Cubs",
+       //// lat: 41.9484861112867, 
+      ////  lng: -87.6552951572774, 
+      ////  badge: "assets/blue-cross.png"
+     //// },
+
+    //      {
+      //  name: "Centre Bell",
+      //  visit: "-",
+      //  date: "-",
+      //  club: "Montreal Canadiens",
+      //  lat: 45.49610313683004, 
+      //  lng: -73.56931171006852, 
+      //  badge: "assets/blue-cross.png"
+    //  },
+
+       //   {
+      //  name: "Scotiabank Arena",
+      //  visit: "-",
+      //  date: "-",
+      //  club: "Toronto Maple Leafs",
+      //  lat: 43.64350989457252, 
+      //  lng: -79.37910662015203, 
+     //   badge: "assets/blue-cross.png"
+    //  },
+
+         // {
+      //  name: "AT&T Stadium",
+     // //  date: "-",
+      //  club: "Dallas Cowboys",
+       // lat: 32.74811735955446, 
+       // lng: -97.09341810100841, 
+       // badge: "assets/blue-cross.png"
+     // },
+
+       //   {
+      //  name: "Gillette Stadium",
+      //  visit: "-",
+      //  date: "-",
+      //  club: "New England Patriots",
+      //  lat: 42.09094311136228, 
+      //  lng: -71.26427724117706, 
+      //  badge: "assets/blue-cross.png"
+    //  },
+
+       //   {
+       // name: "Lambeau Field",
+       // visit: "-",
+       // date: "-",
+       // club: "Green Bay Packers",
+       // lat: 44.50146105521405, 
+       // lng: -88.0622374775224, 
+       // badge: "assets/blue-cross.png"
+    //  },
+
+       ////   {
+      ////  name: "Soldier Field",
+      ////  visit: "-",
+      ////  date: "-",
+      ////  club: "Chicago Bears",
+      ////  lat: 41.862480967486114, 
+      ////  lng: -87.61657038528712, 
+      ////  badge: "assets/blue-cross.png"
+      ////},
+
+        ////  {
+       //// name: "Arrowhead Stadium",
+       //// visit: "-",
+       //// date: "-",
+       //// club: "Kansas City Chiefs",
+      //// lat: 39.04904776293173, 
+       //// lng: -94.48401866030838, 
+      ////  badge: "assets/blue-cross.png"
+     //// },
+
+        ////  {
+      ////  name: "United Center",
+       //// visit: "-",
+       //// date: "-",
+       //// club: "Chicago Bulls",
+       //// lat: 41.88079390788745, 
+       //// lng: -87.67420963067684, 
+       //// badge: "assets/blue-cross.png"
+    ////  },
+
+       ////   {
+       //// name: "Crypto.com Arena",
+      ////  visit: "-",
+      ////  date: "-",
+       //// club: "Los Angeles Lakers",
+      ////  lat: 34.043101699014336, 
+      ////  lng: -118.26727439788885, 
+      ////  badge: "assets/blue-cross.png"
+     //// },
+
+        //  {
+       // name: "TD Garden",
+       // visit: "-",
+        //date: "-",
+       // club: "Boston Celtics",
+       // lat: 42.366221257423895, 
+       // lng: -71.06214955313824, 
+      //  badge: "assets/blue-cross.png"
+    //  },
+
+           {
+        name: "Princes Park Stadium",
+        visit: "-",
+        date: "-",
+        club: "Dartford",
+        lat: 51.43698351545378, 
+        lng: 0.23085206692873464, 
+        badge: "assets/orange-cross.png"
+      },
+
+           {
+        name: "Crabble Athletic Ground",
+        visit: "-",
+        date: "-",
+        club: "Dover Athletic",
+        lat: 51.13791786556033, 
+        lng: 1.284947050782253, 
+        badge: "assets/orange-cross.png"
+      },
+
+       {
+        name: "Lewisham Road",
+        visit: "-",
+        date: "-",
+        club: "Hashtag United",
+        lat: 51.503933301290594, 
+        lng: 0.2614033992478561, 
+        badge: "assets/orange-cross.png"
+      },
+
+         {
+        name: "Raymond McEnhill Stadium",
+        visit: "-",
+        date: "-",
+        club: "Sailsbury",
+        lat: 51.103956013124545, 
+        lng: -1.7860648742470586, 
+       badge: "assets/orange-cross.png"
+      },
+
+
+          {
+        name: "St Pancras Station",
+        lat: 51.531114085948666, 
+        lng: -0.1258113402728814,   
+        badge: "assets/london-station.png",
+        route: "East Midlands & High-Speed 1 to Kent / Eurostar to Europe"
+
+
+      },
+
+          {
+        name: "Victoria Station",
+        lat: 51.49457917490984,  
+        lng: -0.14569000148093622,
+         badge: "assets/london-station.png",
+         route: "South London, Surrey, Sussex & Gatwick / Brighton Main Line"
+
+
+      },
+
+          {
+        name: "Paddington Station",
+        lat: 51.51630477602355,    
+        lng: -0.176597926812389,
+         badge: "assets/london-station.png",
+         route: "West of England & South Wales"
+
+
+      },
+
+          {
+        name: "Euston Station",
+        lat: 51.52807342715011, 
+        lng: -0.13343182450398156,
+         badge: "assets/london-station.png",
+         route: "North West England & Scotland (West Coast Main Line)"
+
+
+      },
+
+         {
+        name: "Kings Cross Station",
+        lat: 51.53163557509887, 
+        lng: -0.12380374057632695,  
+        badge: "assets/london-station.png",
+        route: "North East England & Scotland (East Coast Main Line)"
+
+      },
+
+         {
+        name: "Liverpool Street Station",
+        lat: 51.519290611228364, 
+        lng: -0.08109944171066266,
+         badge: "assets/london-station.png",
+         route: "East Anglia (Essex, Suffolk, Norfolk, Cambridge)"
+
+
+      },
+   
+
+         {
+        name: "London Bridge Station",
+        lat: 51.504306382447666, 
+        lng: -0.08481183481928686,
+         badge: "assets/london-station.png",
+         route: "South East London, Kent & Sussex (Brighton Line, Kent routes)"
+
+
+      },
+
+      {
+        name: "Crewe Station",
+        lat: 53.089453151467694, 
+        lng: -2.432877900098585,
+          badge: "assets/train-icon.png",
+         route: "Major Route for North West England, North Wales, Midlands & Scotland (West Coast Main Line interchange.)"
+
+      },
+
+       {
+        name: "Preston Station",
+        lat: 53.75537082479562, 
+        lng: -2.7071827943561595, 
+          badge: "assets/train-icon.png",
+         route: "Major Route for Lancashire, Cumbria, Lake District & Scotland"
+
+
+      },
+
+       {
+        name: "Manchester Piccadilly Station",
+        lat: 53.477409134059556, 
+        lng: -2.2309101420176147,
+          badge: "assets/train-icon.png",
+         route: "Major Route for North West, North Wales, Yorkshire & London"
+
+
+      },
+   
+   
+    {
+        name: "Birmingham New Street Station",
+        lat: 52.47778285290421, 
+        lng: -1.8989602546041864,
+          badge: "assets/train-icon.png",
+         route: "National hub for Midlands, North, South West & South Coast"
+
+
+      },
+
+          {
+        name: "Doncaster Station",
+        lat: 53.52213118830587, 
+        lng: -1.1399011163128818,
+          badge: "assets/train-icon.png",
+         route: "Major Route for East Coast Main Line, TransPennine & Lincolnshire"
+
+
+      },
+
+           {
+        name: "Sheffield Station",
+        lat: 53.37797975239416, 
+        lng: -1.4620736628987168,
+          badge: "assets/train-icon.png",
+         route: "Major Route for South Yorkshire, East Midlands & TransPennine routes"
+
+
+      },
+
+            {
+        name: "Leeds Station",
+        lat: 53.79497787433483, 
+        lng: -1.547410116899077,
+          badge: "assets/train-icon.png",
+         route: "Major Route for Yorkshire, North East, Manchester & Midlands"
+
+
+      },
+
+            {
+        name: "Bristol Temple Meads Station",
+        lat: 51.4495442477115, 
+        lng: -2.580548734662077,
+          badge: "assets/train-icon.png",
+         route: "Major Route for South West, South Wales, Midlands & London"
+
+
+      },
+
+            {
+        name: "Manchester Victoria Station",
+        lat: 53.48757473477185, 
+        lng: -2.242204116946246,
+          badge: "assets/train-icon.png",
+         route: "Major Route for Lancashire, Yorkshire, TransPennine services & Metrolink interchange"
+
+
+      },
+
+            {
+        name: "Lancaster Station",
+        lat: 54.048725191574626, 
+        lng: -2.808089903560737,
+          badge: "assets/train-icon.png",
+         route: "Major Route for Lake District, Cumbria Coast, Morecambe & West Coast Main Line"
+
+
+      },
+    ];
+
+    // 2) Create map
+ function starHTML(score10) {
+      const score = Math.max(0, Math.min(10, Number(score10)));
+      const pct = (score / 10) * 100;
+      return `
+        <span class="stars" aria-label="${score}/10" title="${score}/10">
+          <span class="bg">★★★★★</span>
+          <span class="fg" style="width:${pct}%">★★★★★</span>
+        </span>`;
+    }
+
+    function addrLines(a) {
+  if (!a) return [];
+  return [a.line1, a.town, a.county, a.postcode].filter(Boolean);
+}
+function mapsTarget(g) {
+  const lines = addrLines(g.addr);
+  return lines.length ? encodeURIComponent(lines.join(", ")) : `${g.lat},${g.lng}`;
+}
+
+    function buildGroundPopup(g) {
+      const r = g.ratings;
+      const id = `det-${Math.random().toString(36).slice(2)}`;
+      const ratingsHTML = r ? `
+        <div class="row"><span class="category">Atmosphere</span><span>${starHTML(r.atmosphere)} <span class="score10">${r.atmosphere}/10</span></span></div>
+        <div class="row"><span class="category">Staff</span><span>${starHTML(r.staff)} <span class="score10">${r.staff}/10</span></span></div>
+        <div class="row"><span class="category">City</span><span>${starHTML(r.city)} <span class="score10">${r.city}/10</span></span></div>
+        <div class="row"><span class="category">Ground</span><span>${starHTML(r.ground)} <span class="score10">${r.ground}/10</span></span></div>
+        <div class="row"><span class="category">Food</span><span>${starHTML(r.food)} <span class="score10">${r.food}/10</span></span></div>
+        <div class="row"><span class="category">Location</span><span>${starHTML(r.location)} <span class="score10">${r.location}/10</span></span></div>
+        <div class="row"><span class="category">Character</span><span>${starHTML(r.character)} <span class="score10">${r.character}/10</span></span></div>
+        <div class="row"><span class="category">People</span><span>${starHTML(r.people)} <span class="score10">${r.people}/10</span></span></div>
+      ` : `<p style="margin:6px 0;">No ratings yet.</p>`;
+
+      return `
+        <div class="popup">
+          <div class="header">
+            <img src="${g.badge}" alt="${g.club} badge" />
+           <div class="title">
+  <h3 style="margin:0 0 2px;">${g.name}</h3>
+  <p style="margin:0;">${g.club}</p>
+
+  ${g.addr ? `
+    <p style="margin:4px 0 0; font-size:12px; line-height:1.3; color:#333;">
+      ${addrLines(g.addr).join("<br>")}
+    </p>` : ""}
+
+  <p style="margin:4px 0 0; font-size:12px; color:#333;">
+    Visit ${g.visit} • ${g.date}
+  </p>
+  <p style="margin:4px 0 0;">
+    <a href="https://maps.google.com/?q=${mapsTarget(g)}" target="_blank" rel="noopener">Open in Google Maps</a>
+  </p>
+</div>
+            <span class="chevron" title="Show ratings"
+              onclick="(function(el){var d=document.getElementById('${id}');var show=d.style.display!=='block';d.style.display=show?'block':'none';el.textContent=show?'▾':'▸';})(this)">▸</span>
+          </div>
+         <div id="${id}" class="details">
+  <h4 style="margin:0 0 6px;">Ratings</h4>
+  ${ratingsHTML}
+
+  <h4 style="margin:10px 0 6px;">Match Details</h4>
+  <div class="row"><label style="flex:1;">Match: <input type="text" id="match-${id}" style="width:100%;" /></label></div>
+  <div class="row"><label style="flex:1;">Result: <input type="text" id="result-${id}" style="width:100%;" /></label></div>
+  <div class="row"><label style="flex:1;">Stand: <input type="text" id="stand-${id}" style="width:100%;" /></label></div>
+  <div class="row"><label style="flex:1;">Block: <input type="text" id="block-${id}" style="width:100%;" /></label></div>
+  <div class="row"><label style="flex:1;">Row: <input type="text" id="row-${id}" style="width:100%;" /></label></div>
+  <div class="row"><label style="flex:1;">Seat: <input type="text" id="seat-${id}" style="width:100%;" /></label></div>
+
+  <div style="margin-top:6px;">
+    <button onclick="saveMatchDetails('${g.name}', '${id}')">💾 Save Match Details</button>
+    <div id="saved-${id}" style="font-size:12px; margin-top:6px;"></div>
+  </div>
+</div>
+        </div>`;
+    }
+    // 3) Tile layer
+  const map = L.map("map").setView([51.5, -0.1], 12);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    // Grounds ON by default, stations OFF by default
+    const groundsLayer  = L.layerGroup().addTo(map);
+    const stationsLayer = L.layerGroup();
+
+    // Reusable station icon
+    const stationIcon = L.icon({
+      iconUrl: 'assets/train-logo.jpg',
+      iconSize: [20, 18],
+      iconAnchor: [10, 9],
+      popupAnchor: [0, -9]
+    });
+
+    // Sum all numeric rating fields (safe for strings/missing)
+function sumScore(r) {
+  if (!r || typeof r !== 'object') return 0;
+  let t = 0; for (const v of Object.values(r)) t += Number(v) || 0;
+  return t;
+}
+
+// We'll collect rated grounds here as we build markers
+const ratedGrounds = [];
+
+    // Keep references so the Top-20 table can fly/open popups
+    const markerByName = new Map();
+
+    grounds.forEach(g => {
+      const isStation = !!g.route;
+
+        // NEW: compute/store total score on the object
+  g.totalScore = isStation ? 0 : sumScore(g.ratings);
+  if (!isStation && g.totalScore > 0) ratedGrounds.push(g);
+
+      const icon = isStation ? stationIcon : badgeIcon(g.badge);
+      const marker = L.marker([g.lat, g.lng], { icon });
+
+      const popupHTML = isStation
+        ? `
+          <div class="popup">
+            <div class="header">
+              <img src="assets/train-icon.png" alt="Station icon" />
+              <div class="title">
+                <h3 style="margin:0 0 2px;">${g.name}</h3>
+                <p style="margin:0;">Major Route for ${g.route}</p>
+                <p style="margin:4px 0 0;">
+                  <a href="https://maps.google.com/?q=${g.lat},${g.lng}" target="_blank" rel="noopener">Open in Google Maps</a>
+                </p>
+              </div>
+            </div>
+          </div>`
+        : buildGroundPopup(g);
+
+      marker.bindPopup(popupHTML).on('popupopen', () => {
+  const id = marker.getPopup().getContent().match(/id="(det-[^"]+)"/)?.[1];
+  if (id) showSavedMatchDetails(g.name, id);
+});
+      (isStation ? stationsLayer : groundsLayer).addLayer(marker);
+
+      if (!isStation) markerByName.set(g.name, marker);
+    });
+
+    L.control.layers(
+      null,
+      {
+        '<img src="assets/train-icon.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Show train stations': stationsLayer
+      }
+    ).addTo(map);
+
+    const gBounds = groundsLayer.getBounds();
+    if (gBounds.isValid()) map.fitBounds(gBounds.pad(0.2));
+
+    function saveMatchDetails(name, id) {
+  const match = document.getElementById(`match-${id}`).value;
+  const result = document.getElementById(`result-${id}`).value;
+  const stand = document.getElementById(`stand-${id}`).value;
+  const block = document.getElementById(`block-${id}`).value;
+  const row = document.getElementById(`row-${id}`).value;
+  const seat = document.getElementById(`seat-${id}`).value;
+
+  const data = { match, result, stand, block, row, seat };
+  localStorage.setItem(`matchDetails-${name}`, JSON.stringify(data));
+
+  showSavedMatchDetails(name, id);
+}
+
+function showSavedMatchDetails(name, id) {
+  const data = JSON.parse(localStorage.getItem(`matchDetails-${name}`));
+  const el = document.getElementById(`saved-${id}`);
+  if (!data) {
+    el.innerHTML = '<em>No saved match details yet.</em>';
+    return;
+  }
+
+  el.innerHTML = `
+    <strong>Saved:</strong><br>
+    Match: ${data.match || '-'}<br>
+    Result: ${data.result || '-'}<br>
+    Stand: ${data.stand || '-'}, Block: ${data.block || '-'}, Row: ${data.row || '-'}, Seat: ${data.seat || '-'}
+  `;
+
+  // Pre-fill form with existing data
+  document.getElementById(`match-${id}`).value = data.match || "";
+  document.getElementById(`result-${id}`).value = data.result || "";
+  document.getElementById(`stand-${id}`).value = data.stand || "";
+  document.getElementById(`block-${id}`).value = data.block || "";
+  document.getElementById(`row-${id}`).value = data.row || "";
+  document.getElementById(`seat-${id}`).value = data.seat || "";
+}
+
+</script>
+</body>
+</html>
