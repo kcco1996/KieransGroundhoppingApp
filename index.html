@@ -3024,13 +3024,26 @@ const ratedGrounds = [];
   showSavedMatchDetails(name, id);
 }
 
-function showSavedMatchDetails(name, id) {
-  const data = JSON.parse(localStorage.getItem(`matchDetails-${name}`));
-  const el = document.getElementById(`saved-${id}`);
-  if (!data) {
-    el.innerHTML = '<em>No saved match details yet.</em>';
-    return;
+async function saveMatchDetails(name, id) {
+  const docRef = doc(db, "matches", name);
+  const data = {
+    match: document.getElementById(`match-${id}`).value,
+    result: document.getElementById(`result-${id}`).value,
+    stand: document.getElementById(`stand-${id}`).value,
+    block: document.getElementById(`block-${id}`).value,
+    row: document.getElementById(`row-${id}`).value,
+    seat: document.getElementById(`seat-${id}`).value
+  };
+
+  try {
+    await setDoc(docRef, data);
+    showSavedMatchDetails(name, id);
+    alert("Match data saved to Firebase!");
+  } catch (error) {
+    console.error("Error saving data:", error);
+    alert("Failed to save.");
   }
+}
 
   el.innerHTML = `
     <strong>Saved:</strong><br>
@@ -3046,8 +3059,51 @@ function showSavedMatchDetails(name, id) {
   document.getElementById(`block-${id}`).value = data.block || "";
   document.getElementById(`row-${id}`).value = data.row || "";
   document.getElementById(`seat-${id}`).value = data.seat || "";
-}
 
+
+</script>
+
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBS5gx2LFYE2TqaBR_hPi67nQjHkTi3jaI",
+    authDomain: "footballmap-ca315.firebaseapp.com",
+    projectId: "footballmap-ca315",
+    storageBucket: "footballmap-ca315.firebasestorage.app",
+    messagingSenderId: "987568271358",
+    appId: "1:987568271358:web:0deaa0dae302fa97b05aaf"
+  };
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+
+  // ✅ THEN use the app to initialize Firestore
+const db = getFirestore(app);
+
+  async function saveMatchData(id) {
+  const docRef = doc(db, "matches", id); // each match by ID
+  const data = {
+    match: document.getElementById(`match-${id}`).value,
+    result: document.getElementById(`result-${id}`).value,
+    stand: document.getElementById(`stand-${id}`).value,
+    block: document.getElementById(`block-${id}`).value,
+    row: document.getElementById(`row-${id}`).value,
+    seat: document.getElementById(`seat-${id}`).value
+  };
+
+  try {
+    await setDoc(docRef, data);
+    alert("Match data saved to Firebase!");
+  } catch (error) {
+    console.error("Error saving data:", error);
+    alert("Failed to save.");
+  }
+}
 </script>
 </body>
 </html>
