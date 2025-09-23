@@ -61,8 +61,18 @@
   </style>
 </head>
 <body>
+
+  <button id="signInBtn">Sign in with Google</button>
+<button id="signOutBtn" style="display:none;">Sign Out</button>
+<div id="userStatus"></div>
   <div id="app">
     <div id="map"></div>
+
+    <div id="migrateContainer" style="display: none;">
+  <button id="migrateButton" style="font-size: 12px; padding: 4px 8px;">
+    Migrate Local Data to Firebase
+  </button>
+</div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -3007,65 +3017,47 @@ const ratedGrounds = [];
       }
     ).addTo(map);
 
-    const gBounds = groundsLayer.getBounds();
-    if (gBounds.isValid()) map.fitBounds(gBounds.pad(0.2));
-
-    function saveMatchDetails(name, id) {
-  const match = document.getElementById(`match-${id}`).value;
-  const result = document.getElementById(`result-${id}`).value;
-  const stand = document.getElementById(`stand-${id}`).value;
-  const block = document.getElementById(`block-${id}`).value;
-  const row = document.getElementById(`row-${id}`).value;
-  const seat = document.getElementById(`seat-${id}`).value;
-
-  const data = { match, result, stand, block, row, seat };
-  localStorage.setItem(`matchDetails-${name}`, JSON.stringify(data));
-
-  showSavedMatchDetails(name, id);
-}
-
-async function saveMatchDetails(name, id) {
-  const docRef = doc(db, "matches", name);
-  const data = {
-    match: document.getElementById(`match-${id}`).value,
-    result: document.getElementById(`result-${id}`).value,
-    stand: document.getElementById(`stand-${id}`).value,
-    block: document.getElementById(`block-${id}`).value,
-    row: document.getElementById(`row-${id}`).value,
-    seat: document.getElementById(`seat-${id}`).value
-  };
-
-  try {
-    await setDoc(docRef, data);
-    showSavedMatchDetails(name, id);
-    alert("Match data saved to Firebase!");
-  } catch (error) {
-    console.error("Error saving data:", error);
-    alert("Failed to save.");
+ const gBounds = L.latLngBounds([]);
+groundsLayer.eachLayer(layer => {
+  if (layer.getLatLng) {
+    gBounds.extend(layer.getLatLng());
   }
-}
-
-  el.innerHTML = `
-    <strong>Saved:</strong><br>
-    Match: ${data.match || '-'}<br>
-    Result: ${data.result || '-'}<br>
-    Stand: ${data.stand || '-'}, Block: ${data.block || '-'}, Row: ${data.row || '-'}, Seat: ${data.seat || '-'}
-  `;
-
-  // Pre-fill form with existing data
-  document.getElementById(`match-${id}`).value = data.match || "";
-  document.getElementById(`result-${id}`).value = data.result || "";
-  document.getElementById(`stand-${id}`).value = data.stand || "";
-  document.getElementById(`block-${id}`).value = data.block || "";
-  document.getElementById(`row-${id}`).value = data.row || "";
-  document.getElementById(`seat-${id}`).value = data.seat || "";
-
+});
+if (gBounds.isValid()) map.fitBounds(gBounds.pad(0.2));
 
 </script>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
   import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+
+    // MIGRATION FUNCTION FIXED
+window.migrateLocalToFirebase = async function () {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith("matchDetails-"));
+
+  if (keys.length === 0) {
+    alert("No localStorage match data found.");
+    return;
+  }
+
+  const confirmed = confirm(`Migrate ${keys.length} saved matches to Firebase?`);
+  if (!confirmed) return;
+
+  let success = 0;
+  for (const key of keys) {
+    const name = key.replace("matchDetails-", "");
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+      await setDoc(doc(db, "matches", name), data);
+      success++;
+    } catch (err) {
+      console.error(`Failed to upload ${name}:`, err);
+    }
+  }
+
+  alert(`✅ Migration complete: ${success} matches uploaded to Firebase.`);
+};
 
   const firebaseConfig = {
     apiKey: "AIzaSyBS5gx2LFYE2TqaBR_hPi67nQjHkTi3jaI",
@@ -3079,26 +3071,62 @@ async function saveMatchDetails(name, id) {
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
-  // Save match data to Firestore
-  window.saveMatchDetails = async function(name, id) {
-    const data = {
-      match: document.getElementById(`match-${id}`).value,
-      result: document.getElementById(`result-${id}`).value,
-      stand: document.getElementById(`stand-${id}`).value,
-      block: document.getElementById(`block-${id}`).value,
-      row: document.getElementById(`row-${id}`).value,
-      seat: document.getElementById(`seat-${id}`).value
-    };
+  const auth = getAuth();
+const provider = new GoogleAuthProvider();
 
-    try {
-      await setDoc(doc(db, "matches", name), data);
-      window.showSavedMatchDetails(name, id); // show after save
-      document.getElementById(`saved-${id}`).innerText = "Saved to Firestore!";
-    } catch (error) {
-      console.error("Error saving to Firestore:", error);
-      alert("Failed to save match data.");
-    }
+ const signInBtn = document.getElementById("signInBtn");
+const signOutBtn = document.getElementById("signOutBtn");
+const userStatus = document.getElementById("userStatus");
+
+signInBtn.addEventListener("click", async () => {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    alert("Failed to sign in: " + err.message);
+  }
+});
+
+signOutBtn.addEventListener("click", async () => {
+  await signOut(auth);
+});
+
+ onAuthStateChanged(auth, user => {
+  const migrateContainer = document.getElementById("migrateContainer");
+  if (user) {
+    userStatus.textContent = `Signed in as ${user.displayName}`;
+    signInBtn.style.display = "none";
+    signOutBtn.style.display = "inline-block";
+    if (migrateContainer) migrateContainer.style.display = "block";
+  } else {
+    userStatus.textContent = "Not signed in";
+    signInBtn.style.display = "inline-block";
+    signOutBtn.style.display = "none";
+    if (migrateContainer) migrateContainer.style.display = "none";
+  }
+});
+
+
+  // Save match data to Firestore
+ window.saveMatchDetails = async function(name, id) {
+  const data = {
+    match: document.getElementById(`match-${id}`).value,
+    result: document.getElementById(`result-${id}`).value,
+    stand: document.getElementById(`stand-${id}`).value,
+    block: document.getElementById(`block-${id}`).value,
+    row: document.getElementById(`row-${id}`).value,
+    seat: document.getElementById(`seat-${id}`).value
   };
+
+  try {
+    localStorage.setItem(`matchDetails-${name}`, JSON.stringify(data)); // ✅ Save locally
+    await setDoc(doc(db, "matches", name), data); // ✅ Save to Firebase
+    window.showSavedMatchDetails(name, id);
+    document.getElementById(`saved-${id}`).innerText = "Saved to Firestore!";
+  } catch (error) {
+    console.error("Error saving to Firestore:", error);
+    alert("Failed to save match data.");
+  }
+};
 
   // Load and display saved data
   window.showSavedMatchDetails = async function(name, id) {
@@ -3125,7 +3153,7 @@ async function saveMatchDetails(name, id) {
         `;
       }
     } catch (err) {
-      console.error("Error loading match data:", err);
+      console.error(`Failed to upload ${name}:`, err.message || err);
     }
   };
 </script>
