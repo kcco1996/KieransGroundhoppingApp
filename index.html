@@ -62,17 +62,20 @@
 </head>
 <body>
 
-  <button id="signInBtn">Sign in with Google</button>
-<button id="signOutBtn" style="display:none;">Sign Out</button>
-<div id="userStatus"></div>
-  <div id="app">
-    <div id="map"></div>
-
-    <div id="migrateContainer" style="display: none;">
-  <button id="migrateButton" style="font-size: 12px; padding: 4px 8px;">
-    Migrate Local Data to Firebase
-  </button>
+<div id="topBar" style="display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background-color: white; border-bottom: 1px solid #ddd; font-family: system-ui; z-index: 1000;">
+  <div>
+    <button id="signInBtn">Sign in with Google</button>
+    <button id="signOutBtn" style="display:none;">Sign Out</button>
+    <span id="userStatus" style="margin-left: 10px;"></span>
+  </div>
+  <div id="migrateContainer" style="display: none;">
+    <button id="migrateButton" style="font-size: 12px; padding: 4px 8px;">
+      Migrate Local Data to Firebase
+    </button>
+  </div>
 </div>
+
+<div id="map"></div>
 
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -840,7 +843,7 @@
         name: "St James' Park,",
          addr: {
     line1: "Barrack Road,",   
-    town: "Newcastle upon Tyne",
+    town: "Newcastle",
     county: "Tyne and Wear",
     postcode: "NE1 4ST"
   },
@@ -1825,11 +1828,11 @@
     postcode: "CH42 9PY"
   }, 
         visit: "103",
-        date: "-",
+        date: "27/09/2025",
         club: "Tranmere Rovers",
         lat: 53.37384205329089, 
         lng: -3.0325026460085853, 
-        badge: "assets/red-cross.png",
+        badge: "assets/tranmere-badge.png",
         ratings: { atmosphere:0, staff:0, city:0, ground:0, food:0, location:0, character:0, people:0 }
       },
 
@@ -3105,6 +3108,10 @@ signOutBtn.addEventListener("click", async () => {
   }
 });
 
+const migrateBtn = document.getElementById("migrateButton");
+if (migrateBtn) {
+  migrateBtn.addEventListener("click", migrateLocalToFirebase);
+}
 
   // Save match data to Firestore
  window.saveMatchDetails = async function(name, id) {
