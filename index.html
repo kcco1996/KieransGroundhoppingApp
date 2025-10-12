@@ -2876,63 +2876,94 @@ function mapsTarget(g) {
   const lines = addrLines(g.addr);
   return lines.length ? encodeURIComponent(lines.join(", ")) : `${g.lat},${g.lng}`;
 }
+function buildGroundPopup(g) {
+  const r = g.ratings;
+  const id = `det-${Math.random().toString(36).slice(2)}`;
 
-    function buildGroundPopup(g) {
-      const r = g.ratings;
-      const id = `det-${Math.random().toString(36).slice(2)}`;
-      const ratingsHTML = r ? `
-        <div class="row"><span class="category">Atmosphere</span><span>${starHTML(r.atmosphere)} <span class="score10">${r.atmosphere}/10</span></span></div>
-        <div class="row"><span class="category">Staff</span><span>${starHTML(r.staff)} <span class="score10">${r.staff}/10</span></span></div>
-        <div class="row"><span class="category">City</span><span>${starHTML(r.city)} <span class="score10">${r.city}/10</span></span></div>
-        <div class="row"><span class="category">Ground</span><span>${starHTML(r.ground)} <span class="score10">${r.ground}/10</span></span></div>
-        <div class="row"><span class="category">Food</span><span>${starHTML(r.food)} <span class="score10">${r.food}/10</span></span></div>
-        <div class="row"><span class="category">Location</span><span>${starHTML(r.location)} <span class="score10">${r.location}/10</span></span></div>
-        <div class="row"><span class="category">Character</span><span>${starHTML(r.character)} <span class="score10">${r.character}/10</span></span></div>
-        <div class="row"><span class="category">People</span><span>${starHTML(r.people)} <span class="score10">${r.people}/10</span></span></div>
-      ` : `<p style="margin:6px 0;">No ratings yet.</p>`;
+  const ratingsHTML = r ? `
+    <div class="row"><span class="category">Atmosphere</span><span>${starHTML(r.atmosphere)} <span class="score10">${r.atmosphere}/10</span></span></div>
+    <div class="row"><span class="category">Staff</span><span>${starHTML(r.staff)} <span class="score10">${r.staff}/10</span></span></div>
+    <div class="row"><span class="category">City</span><span>${starHTML(r.city)} <span class="score10">${r.city}/10</span></span></div>
+    <div class="row"><span class="category">Ground</span><span>${starHTML(r.ground)} <span class="score10">${r.ground}/10</span></span></div>
+    <div class="row"><span class="category">Food</span><span>${starHTML(r.food)} <span class="score10">${r.food}/10</span></span></div>
+    <div class="row"><span class="category">Location</span><span>${starHTML(r.location)} <span class="score10">${r.location}/10</span></span></div>
+    <div class="row"><span class="category">Character</span><span>${starHTML(r.character)} <span class="score10">${r.character}/10</span></span></div>
+    <div class="row"><span class="category">People</span><span>${starHTML(r.people)} <span class="score10">${r.people}/10</span></span></div>
+  ` : `<p style="margin:6px 0;">No ratings yet.</p>`;
 
-      return `
-        <div class="popup">
-          <div class="header">
-            <img src="${g.badge}" alt="${g.club} badge" />
-           <div class="title">
-  <h3 style="margin:0 0 2px;">${g.name}</h3>
-  <p style="margin:0;">${g.club}</p>
+const stored = JSON.parse(
+  localStorage.getItem('matchDetails-' + g.name) ||
+  localStorage.getItem('matchDetails_' + g.name) ||
+  '{}'
+);
 
-  ${g.addr ? `
-    <p style="margin:4px 0 0; font-size:12px; line-height:1.3; color:#333;">
-      ${addrLines(g.addr).join("<br>")}
-    </p>` : ""}
-
-  <p style="margin:4px 0 0; font-size:12px; color:#333;">
-    Visit ${g.visit} • ${g.date}
-  </p>
-  <p style="margin:4px 0 0;">
-    <a href="https://maps.google.com/?q=${mapsTarget(g)}" target="_blank" rel="noopener">Open in Google Maps</a>
-  </p>
-</div>
-            <span class="chevron" title="Show ratings"
-              onclick="(function(el){var d=document.getElementById('${id}');var show=d.style.display!=='block';d.style.display=show?'block':'none';el.textContent=show?'▾':'▸';})(this)">▸</span>
-          </div>
-         <div id="${id}" class="details">
-  <h4 style="margin:0 0 6px;">Ratings</h4>
-  ${ratingsHTML}
-
-  <h4 style="margin:10px 0 6px;">Match Details</h4>
-  <div class="row"><label style="flex:1;">Match: <input type="text" id="match-${id}" style="width:100%;" /></label></div>
-  <div class="row"><label style="flex:1;">Result: <input type="text" id="result-${id}" style="width:100%;" /></label></div>
-  <div class="row"><label style="flex:1;">Stand: <input type="text" id="stand-${id}" style="width:100%;" /></label></div>
-  <div class="row"><label style="flex:1;">Block: <input type="text" id="block-${id}" style="width:100%;" /></label></div>
-  <div class="row"><label style="flex:1;">Row: <input type="text" id="row-${id}" style="width:100%;" /></label></div>
-  <div class="row"><label style="flex:1;">Seat: <input type="text" id="seat-${id}" style="width:100%;" /></label></div>
+const matchDetailsHTML = `
+  <div class="row"><label style="flex:1;">Match: <input type="text" id="match-${id}" style="width:100%;" value="${stored.match || ''}" /></label></div>
+  <div class="row"><label style="flex:1;">Result: <input type="text" id="result-${id}" style="width:100%;" value="${stored.result || ''}" /></label></div>
+  <div class="row"><label style="flex:1;">Stand: <input type="text" id="stand-${id}" style="width:100%;" value="${stored.stand || ''}" /></label></div>
+  <div class="row"><label style="flex:1;">Block: <input type="text" id="block-${id}" style="width:100%;" value="${stored.block || ''}" /></label></div>
+  <div class="row"><label style="flex:1;">Row: <input type="text" id="row-${id}" style="width:100%;" value="${stored.row || ''}" /></label></div>
+  <div class="row"><label style="flex:1;">Seat: <input type="text" id="seat-${id}" style="width:100%;" value="${stored.seat || ''}" /></label></div>
 
   <div style="margin-top:6px;">
-    <button onclick="saveMatchDetails('${g.name}', '${id}')">💾 Save Match Details</button>
-    <div id="saved-${id}" style="font-size:12px; margin-top:6px;"></div>
+    <button onclick="saveMatchDetails('${g.name}', '${id}')">
+  💾 <span>Save Match Details</span>
+</button>
+    <div id="saved-${id}" style="font-size:12px; margin-top:6px;">
+      ${stored.saved ? 'Last saved: ' + stored.saved : ''}
+    </div>
   </div>
+`;
+
+  return `
+    <div class="popup">
+      <div class="header">
+        <img src="${g.badge}" alt="${g.club} badge" />
+        <div class="title">
+          <h3 style="margin:0 0 2px;">${g.name}</h3>
+          <p style="margin:0;">${g.club}</p>
+          ${g.addr ? `<p style="margin:4px 0 0; font-size:12px; line-height:1.3; color:#333;">${addrLines(g.addr).join("<br>")}</p>` : ""}
+          <p style="margin:4px 0 0; font-size:12px; color:#333;">Visit ${g.visit} • ${g.date}</p>
+          <p style="margin:4px 0 0;">
+            <a href="https://maps.google.com/?q=${mapsTarget(g)}" target="_blank" rel="noopener">Open in Google Maps</a>
+          </p>
+        </div>
+      </div>
+
+     <!-- Tabs -->
+<div style="margin-top:8px;">
+  <button class="tab-btn active" id="tab-ratings-${id}" onclick="switchTab('${id}', 'ratings')">
+    ⭐ Ratings
+  </button>
+  <button class="tab-btn" id="tab-match-${id}" onclick="switchTab('${id}', 'match')">
+    ⚽ Match Details
+  </button>
 </div>
-        </div>`;
-    }
+
+      <!-- Ratings content -->
+      <div id="ratings-${id}" class="tab-content" style="display:block; margin-top:8px;">
+        <h4>Ratings</h4>
+        ${ratingsHTML}
+      </div>
+
+      <!-- Match details content -->
+      <div id="match-${id}-tab" class="tab-content" style="display:none; margin-top:8px;">
+        <h4>Match Details</h4>
+        ${matchDetailsHTML}
+      </div>
+    </div>
+  `;
+}
+
+window.switchTab = function(id, tab) {
+  // Toggle visible sections
+  document.getElementById(`ratings-${id}`).style.display = (tab === 'ratings') ? 'block' : 'none';
+  document.getElementById(`match-${id}-tab`).style.display = (tab === 'match') ? 'block' : 'none';
+
+  // Highlight active tab
+  document.getElementById(`tab-ratings-${id}`).classList.toggle('active', tab === 'ratings');
+  document.getElementById(`tab-match-${id}`).classList.toggle('active', tab === 'match');
+};
     // 3) Tile layer
   const map = L.map("map").setView([51.5, -0.1], 12);
 
@@ -2993,7 +3024,10 @@ const ratedGrounds = [];
         : buildGroundPopup(g);
 
       marker.bindPopup(popupHTML).on('popupopen', () => {
-  const id = marker.getPopup().getContent().match(/id="(det-[^"]+)"/)?.[1];
+const id = marker
+  .getPopup()
+  .getContent()
+  .match(/id="(?:tab-(?:ratings|match)-)?(det-[^"]+)"/)?.[1];
   if (id) showSavedMatchDetails(g.name, id);
 });
       (isStation ? stationsLayer : groundsLayer).addLayer(marker);
@@ -3113,7 +3147,7 @@ if (migrateBtn) {
   };
 
   try {
-    localStorage.setItem(`matchDetails-${name}`, JSON.stringify(data)); // ✅ Save locally
+   localStorage.setItem(`matchDetails-${name}`, JSON.stringify(data)); // ✅ Save locally
     await setDoc(doc(db, "matches", name), data); // ✅ Save to Firebase
     window.showSavedMatchDetails(name, id);
     document.getElementById(`saved-${id}`).innerText = "Saved to Firestore!";
