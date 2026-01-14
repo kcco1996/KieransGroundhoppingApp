@@ -67,6 +67,10 @@
     <button id="signInBtn">Sign in with Google</button>
     <button id="signOutBtn" style="display:none;">Sign Out</button>
     <span id="userStatus" style="margin-left: 10px;"></span>
+<span id="badgeCounts" style="margin-left:12px; font-weight:600;">
+    🛡️ Badges: 0 | ❌ Crosses: 0
+  </span>
+</div>
   </div>
   <div id="migrateContainer" style="display: none;">
     <button id="migrateButton" style="font-size: 12px; padding: 4px 8px;">
@@ -3120,6 +3124,34 @@ window.switchTab = function(id, tab) {
     const groundsLayer  = L.layerGroup().addTo(map);
     const stationsLayer = L.layerGroup();
 
+    function isCrossBadgePath(path) {
+  const p = String(path || "").toLowerCase();
+  return (
+    p.includes("green-cross.png") ||
+    p.includes("orange-cross.png") ||
+    p.includes("yellow-cross.png") ||
+    p.includes("blue-cross.png")
+  );
+}
+
+function updateBadgeCounts() {
+  const el = document.getElementById("badgeCounts");
+  if (!el) return;
+
+  let badges = 0;
+  let crosses = 0;
+
+  grounds.forEach(g => {
+    // ignore stations (they have route)
+    if (g.route) return;
+
+    if (isCrossBadgePath(g.badge)) crosses++;
+    else badges++;
+  });
+
+  el.textContent = `🛡️ Badges: ${badges} | ❌ Crosses: ${crosses}`;
+}
+
     // Reusable station icon
     const stationIcon = L.icon({
       iconUrl: 'assets/train-logo.jpg',
@@ -3193,6 +3225,8 @@ groundsLayer.eachLayer(layer => {
   }
 });
 if (gBounds.isValid()) map.fitBounds(gBounds.pad(0.2));
+
+updateBadgeCounts();
 
 </script>
 
