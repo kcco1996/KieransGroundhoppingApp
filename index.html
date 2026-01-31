@@ -31,6 +31,75 @@
     #sidebar h2 { font-size: 18px; margin: 4px 0 10px; }
     .hint { color:#6b7280; font-size:12px; margin: 0 0 8px; }
 
+    /* Overall ratings table (Leaflet control) */
+.leaderboard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  padding: 10px;
+  width: 340px;
+  max-width: 90vw;
+  max-height: 70vh;
+  overflow: auto;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+.leaderboard h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.leaderboard .sub {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.leaderboard table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.leaderboard thead th {
+  position: sticky; top: 0;
+  background: #f8fafc;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 8px 6px;
+  z-index: 1;
+}
+.leaderboard tbody td { padding: 8px 6px; border-bottom: 1px solid #f1f5f9; }
+.leaderboard tbody tr { cursor: pointer; }
+.leaderboard tbody tr:hover { background: #f8fafc; }
+
+.leaderboard .num { text-align: right; font-variant-numeric: tabular-nums; }
+.leaderboard .cell-badge { display: flex; align-items: center; gap: 8px; }
+.leaderboard .cell-badge img { width: 22px; height: 22px; object-fit: contain; border-radius: 4px; }
+.leaderboard .club { font-weight: 600; }
+
+/* Collapsible leaderboard header */
+.leaderboard .lb-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom: 8px;
+}
+.leaderboard .lb-toggle {
+  cursor:pointer;
+  user-select:none;
+  font-size:18px;
+  line-height:1;
+  padding:4px 8px;
+  border-radius:8px;
+  border: 1px solid #e5e7eb;
+  background:#fff;
+}
+.leaderboard .lb-toggle:hover { background:#f8fafc; }
+
+.leaderboard.collapsed { width:auto; padding:8px; }
+.leaderboard.collapsed .lb-body { display:none; }
+.leaderboard.collapsed .sub { display:none; }
+
+
     /* cells with badge + club */
     #sidebar .cell-badge { display:flex; align-items:center; gap:8px; }
     #sidebar .cell-badge img { width:28px; height:28px; object-fit:contain; border-radius:4px; }
@@ -3156,6 +3225,129 @@ function updateBadgeCounts() {
   el.textContent = `🛡️ Badges: ${badges} | ❌ Crosses: ${crosses}`;
 }
 
+function isBadgeClub(g) {
+  // "badge in the url" rule + not a station
+  if (!g || g.route) return false;
+  const badgePath = String(g.badge || "").toLowerCase();
+  return badgePath.includes("badge");
+}
+
+function buildOverallRatingsTable() {
+  // Collect only clubs whose badge URL contains "badge"
+  const rows = grounds
+    .filter(isBadgeClub)
+    .filter(g => g.visit !== "-" && g.date !== "-")
+    .map(g => {
+      const total = sumScore(g.ratings);
+      return {
+        name: g.name,
+        club: g.club,
+        badge: g.badge,
+        total
+      };
+    })
+    .filter(x => x.total > 0) // only rated ones
+    .sort((a, b) => b.total - a.total);
+
+  return rows;
+}
+
+function addOverallRatingsControl() {
+  const data = buildOverallRatingsTable();
+
+  // A layer group that we can toggle from the Layers control
+  const leaderboardLayer = L.layerGroup();
+
+  const ctrl = L.control({ position: "topright" });
+
+  ctrl.onAdd = function () {
+    const div = L.DomUtil.create("div", "leaderboard");
+
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+
+    const maxPossible = 8 * 10;
+    const collapsedKey = "leaderboard-collapsed";
+    const startCollapsed = localStorage.getItem(collapsedKey) === "1";
+    if (startCollapsed) div.classList.add("collapsed");
+
+    div.innerHTML = `
+      <div class="lb-head">
+        <h3 style="margin:0;">Overall Ratings</h3>
+        <button class="lb-toggle" id="lbToggleBtn" title="Collapse/Expand">
+          ${startCollapsed ? "▸" : "▾"}
+        </button>
+      </div>
+
+      <p class="sub">Clubs filtered by badge URL containing “badge”. Total score is sum of all rating categories (max ${maxPossible}).</p>
+
+      <div class="lb-body">
+        <table>
+          <thead>
+            <tr>
+              <th class="num">#</th>
+              <th>Club</th>
+              <th class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map((r, i) => `
+              <tr data-ground-name="${r.name}">
+                <td class="num">${i + 1}</td>
+                <td>
+                  <div class="cell-badge">
+                    <img src="${r.badge}" alt="">
+                    <div>
+                      <div class="club">${r.club}</div>
+                      <div style="font-size:12px;color:#6b7280;">${r.name}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="num">${r.total}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    // fold/unfold
+    const btn = div.querySelector("#lbToggleBtn");
+    btn.addEventListener("click", () => {
+      const isCollapsed = div.classList.toggle("collapsed");
+      btn.textContent = isCollapsed ? "▸" : "▾";
+      localStorage.setItem(collapsedKey, isCollapsed ? "1" : "0");
+    });
+
+    // row click -> fly/open
+    div.querySelectorAll("tbody tr").forEach(tr => {
+      tr.addEventListener("click", () => {
+        const groundName = tr.getAttribute("data-ground-name");
+        const marker = markerByName.get(groundName);
+        if (!marker) return;
+
+        map.flyTo(marker.getLatLng(), 14, { duration: 0.8 });
+        marker.openPopup();
+      });
+    });
+
+    return div;
+  };
+
+  // When the layer toggles, show/hide the control
+  leaderboardLayer.onAdd = function () { ctrl.addTo(map); };
+  leaderboardLayer.onRemove = function () { ctrl.remove(); };
+
+  // ON by default
+  leaderboardLayer.addTo(map);
+
+  return leaderboardLayer;
+}
+
+// Call it once after markers are built
+const leaderboardLayer = addOverallRatingsControl();
+
+
     // Reusable station icon
     const stationIcon = L.icon({
       iconUrl: 'assets/train-logo.jpg',
@@ -3215,12 +3407,13 @@ const id = marker
       if (!isStation) markerByName.set(g.name, marker);
     });
 
-    L.control.layers(
-      null,
-      {
-        '<img src="assets/train-icon.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Show train stations': stationsLayer
-      }
-    ).addTo(map);
+   const layersControl = L.control.layers(
+  null,
+  {
+    '<img src="assets/train-icon.png" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;"> Show train stations': stationsLayer,
+    '🏆 Show overall ratings table': leaderboardLayer
+  }
+).addTo(map);
 
  const gBounds = L.latLngBounds([]);
 groundsLayer.eachLayer(layer => {
