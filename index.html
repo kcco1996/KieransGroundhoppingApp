@@ -3849,5 +3849,19 @@ window.showSavedMatchDetails = async function(name, id) {
 };
 
 </script>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      try {
+        const reg = await navigator.serviceWorker.register("./sw.js");
+        console.log("Service worker registered:", reg.scope);
+      } catch (err) {
+        console.error("Service worker registration failed:", err);
+      }
+    });
+  }
+</script>
+
 </body>
 </html>
