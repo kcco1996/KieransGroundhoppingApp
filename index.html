@@ -207,6 +207,30 @@
   color: #374151;
   line-height: 1.4;
 }
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 2px 0;
+  user-select: none;
+}
+
+.review-header:hover {
+  color: #2563eb;
+}
+
+.review-arrow {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.review-content {
+  margin-top: 10px;
+}
   </style>
 </head>
 <body>
@@ -3200,49 +3224,63 @@ function buildReviewSection(id, reviewType, reviewTitle, savedReview = {}) {
   const title = savedReview.title || "";
   const text = savedReview.text || "";
 
+  const hasSavedReview = !!(rating || title || text);
+
   return `
     <div class="review-box">
-      <h5>${reviewTitle}</h5>
+      <div class="review-header" onclick="toggleReview('${reviewType}-${id}')">
+        <span>${reviewTitle}</span>
+        <span class="review-arrow" id="arrow-${reviewType}-${id}">
+          ${hasSavedReview ? "▲" : "▼"}
+        </span>
+      </div>
 
-      <label for="${reviewType}-rating-${id}">Rating</label>
-      <select id="${reviewType}-rating-${id}">
-        <option value="">Select rating</option>
-        <option value="1" ${rating === "1" ? "selected" : ""}>1/5</option>
-        <option value="2" ${rating === "2" ? "selected" : ""}>2/5</option>
-        <option value="3" ${rating === "3" ? "selected" : ""}>3/5</option>
-        <option value="4" ${rating === "4" ? "selected" : ""}>4/5</option>
-        <option value="5" ${rating === "5" ? "selected" : ""}>5/5</option>
-      </select>
+      <div
+        class="review-content"
+        id="${reviewType}-${id}"
+        style="display:${hasSavedReview ? "block" : "none"};"
+      >
+        <label for="${reviewType}-rating-${id}">Rating</label>
+        <select id="${reviewType}-rating-${id}">
+          <option value="">Select rating</option>
+          <option value="1" ${rating === "1" ? "selected" : ""}>1/5</option>
+          <option value="2" ${rating === "2" ? "selected" : ""}>2/5</option>
+          <option value="3" ${rating === "3" ? "selected" : ""}>3/5</option>
+          <option value="4" ${rating === "4" ? "selected" : ""}>4/5</option>
+          <option value="5" ${rating === "5" ? "selected" : ""}>5/5</option>
+        </select>
 
-      <label for="${reviewType}-title-${id}">Title</label>
-      <input
-        type="text"
-        id="${reviewType}-title-${id}"
-        value="${escapeHtml(title)}"
-        placeholder="Quick summary"
-      />
+        <label for="${reviewType}-title-${id}">Title</label>
+        <input
+          type="text"
+          id="${reviewType}-title-${id}"
+          value="${escapeHtml(title)}"
+          placeholder="Quick summary"
+        />
 
-      <label for="${reviewType}-text-${id}">Review</label>
-      <textarea
-        id="${reviewType}-text-${id}"
-        placeholder="Write your thoughts here..."
-      >${escapeHtml(text)}</textarea>
+        <label for="${reviewType}-text-${id}">Review</label>
+        <textarea
+          id="${reviewType}-text-${id}"
+          placeholder="Write your thoughts here..."
+        >${escapeHtml(text)}</textarea>
 
-      <button onclick="saveReview('${id}', '${reviewType}')">Save Review</button>
+        <button onclick="saveReview('${id}', '${reviewType}')">Save Review</button>
 
-      <div class="saved-review-preview" id="${reviewType}-saved-${id}">
-        ${
-          rating || title || text
-            ? `<strong>Saved review:</strong><br>
-               Rating: ${escapeHtml(rating || "-")}/5<br>
-               Title: ${escapeHtml(title || "-")}<br>
-               ${escapeHtml(text || "-")}`
-            : `No review saved yet.`
-        }
+        <div class="saved-review-preview" id="${reviewType}-saved-${id}">
+          ${
+            hasSavedReview
+              ? `<strong>Saved review:</strong><br>
+                 Rating: ${escapeHtml(rating || "-")}/5<br>
+                 Title: ${escapeHtml(title || "-")}<br>
+                 ${escapeHtml(text || "-")}`
+              : `No review saved yet.`
+          }
+        </div>
       </div>
     </div>
   `;
 }
+
 function buildGroundPopup(g) {
   const r = g.ratings;
   const id = `det-${Math.random().toString(36).slice(2)}`;
@@ -3340,6 +3378,22 @@ window.switchTab = function(id, tab) {
   document.getElementById(`tab-ratings-${id}`).classList.toggle('active', tab === 'ratings');
   document.getElementById(`tab-match-${id}`).classList.toggle('active', tab === 'match');
 };
+
+window.toggleReview = function(sectionId) {
+  const section = document.getElementById(sectionId);
+  const arrow = document.getElementById(`arrow-${sectionId}`);
+
+  if (!section) return;
+
+  const isHidden = section.style.display === "none";
+
+  section.style.display = isHidden ? "block" : "none";
+
+  if (arrow) {
+    arrow.textContent = isHidden ? "▲" : "▼";
+  }
+};
+
     // 3) Tile layer
   const map = L.map("map").setView([51.5, -0.1], 12);
 
