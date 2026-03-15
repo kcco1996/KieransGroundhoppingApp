@@ -130,6 +130,83 @@
     .stars .fg { position:absolute; inset:0 auto 0 0; overflow:hidden; white-space:nowrap; color:#f2b01e; width:0%; }
     .category { color:#444; }
     .score10 { color:#666; font-variant-numeric:tabular-nums; }
+
+    /* tab buttons */
+.tab-btn {
+  border: 1px solid #d1d5db;
+  background: #f8fafc;
+  color: #111827;
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-right: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tab-btn.active {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+/* review box */
+.review-box {
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.review-box h5 {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.review-box label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.review-box input,
+.review-box select,
+.review-box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.review-box textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.review-box button {
+  margin-top: 10px;
+  border: 0;
+  background: #2563eb;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.review-box button:hover {
+  filter: brightness(0.95);
+}
+
+.saved-review-preview {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #374151;
+  line-height: 1.4;
+}
   </style>
 </head>
 <body>
@@ -139,11 +216,11 @@
     <button id="signInBtn">Sign in with Google</button>
     <button id="signOutBtn" style="display:none;">Sign Out</button>
     <span id="userStatus" style="margin-left: 10px;"></span>
-<span id="badgeCounts" style="margin-left:12px; font-weight:600;">
-    🛡️ Badges: 0 | ❌ Crosses: 0
-  </span>
-</div>
+    <span id="badgeCounts" style="margin-left:12px; font-weight:600;">
+      🛡️ Badges: 0 | ❌ Crosses: 0
+    </span>
   </div>
+
   <div id="migrateContainer" style="display: none;">
     <button id="migrateButton" style="font-size: 12px; padding: 4px 8px;">
       Migrate Local Data to Firebase
@@ -3100,6 +3177,72 @@ function mapsTarget(g) {
   const lines = addrLines(g.addr);
   return lines.length ? encodeURIComponent(lines.join(", ")) : `${g.lat},${g.lng}`;
 }
+
+function escapeHtml(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function getStoredGroundData(name) {
+  return JSON.parse(
+    localStorage.getItem('matchDetails-' + name) ||
+    localStorage.getItem('matchDetails_' + name) ||
+    '{}'
+  );
+}
+
+function buildReviewSection(id, reviewType, reviewTitle, savedReview = {}) {
+  const rating = savedReview.rating || "";
+  const title = savedReview.title || "";
+  const text = savedReview.text || "";
+
+  return `
+    <div class="review-box">
+      <h5>${reviewTitle}</h5>
+
+      <label for="${reviewType}-rating-${id}">Rating</label>
+      <select id="${reviewType}-rating-${id}">
+        <option value="">Select rating</option>
+        <option value="1" ${rating === "1" ? "selected" : ""}>1/5</option>
+        <option value="2" ${rating === "2" ? "selected" : ""}>2/5</option>
+        <option value="3" ${rating === "3" ? "selected" : ""}>3/5</option>
+        <option value="4" ${rating === "4" ? "selected" : ""}>4/5</option>
+        <option value="5" ${rating === "5" ? "selected" : ""}>5/5</option>
+      </select>
+
+      <label for="${reviewType}-title-${id}">Title</label>
+      <input
+        type="text"
+        id="${reviewType}-title-${id}"
+        value="${escapeHtml(title)}"
+        placeholder="Quick summary"
+      />
+
+      <label for="${reviewType}-text-${id}">Review</label>
+      <textarea
+        id="${reviewType}-text-${id}"
+        placeholder="Write your thoughts here..."
+      >${escapeHtml(text)}</textarea>
+
+      <button onclick="saveReview('${id}', '${reviewType}')">Save Review</button>
+
+      <div class="saved-review-preview" id="${reviewType}-saved-${id}">
+        ${
+          rating || title || text
+            ? `<strong>Saved review:</strong><br>
+               Rating: ${escapeHtml(rating || "-")}/5<br>
+               Title: ${escapeHtml(title || "-")}<br>
+               ${escapeHtml(text || "-")}`
+            : `No review saved yet.`
+        }
+      </div>
+    </div>
+  `;
+}
 function buildGroundPopup(g) {
   const r = g.ratings;
   const id = `det-${Math.random().toString(36).slice(2)}`;
@@ -3115,29 +3258,39 @@ function buildGroundPopup(g) {
     <div class="row"><span class="category">People</span><span>${starHTML(r.people)} <span class="score10">${r.people}/10</span></span></div>
   ` : `<p style="margin:6px 0;">No ratings yet.</p>`;
 
-const stored = JSON.parse(
-  localStorage.getItem('matchDetails-' + g.name) ||
-  localStorage.getItem('matchDetails_' + g.name) ||
-  '{}'
-);
+  const stored = getStoredGroundData(g.name);
 
-const matchDetailsHTML = `
-  <div class="row"><label style="flex:1;">Match: <input type="text" id="match-${id}" style="width:100%;" value="${stored.match || ''}" /></label></div>
-  <div class="row"><label style="flex:1;">Result: <input type="text" id="result-${id}" style="width:100%;" value="${stored.result || ''}" /></label></div>
-  <div class="row"><label style="flex:1;">Stand: <input type="text" id="stand-${id}" style="width:100%;" value="${stored.stand || ''}" /></label></div>
-  <div class="row"><label style="flex:1;">Block: <input type="text" id="block-${id}" style="width:100%;" value="${stored.block || ''}" /></label></div>
-  <div class="row"><label style="flex:1;">Row: <input type="text" id="row-${id}" style="width:100%;" value="${stored.row || ''}" /></label></div>
-  <div class="row"><label style="flex:1;">Seat: <input type="text" id="seat-${id}" style="width:100%;" value="${stored.seat || ''}" /></label></div>
+  const matchDetailsHTML = `
+    <div class="row"><label style="flex:1;">Match: <input type="text" id="match-${id}" style="width:100%;" value="${escapeHtml(stored.match || '')}" /></label></div>
+    <div class="row"><label style="flex:1;">Result: <input type="text" id="result-${id}" style="width:100%;" value="${escapeHtml(stored.result || '')}" /></label></div>
+    <div class="row"><label style="flex:1;">Stand: <input type="text" id="stand-${id}" style="width:100%;" value="${escapeHtml(stored.stand || '')}" /></label></div>
+    <div class="row"><label style="flex:1;">Block: <input type="text" id="block-${id}" style="width:100%;" value="${escapeHtml(stored.block || '')}" /></label></div>
+    <div class="row"><label style="flex:1;">Row: <input type="text" id="row-${id}" style="width:100%;" value="${escapeHtml(stored.row || '')}" /></label></div>
+    <div class="row"><label style="flex:1;">Seat: <input type="text" id="seat-${id}" style="width:100%;" value="${escapeHtml(stored.seat || '')}" /></label></div>
 
-  <div style="margin-top:6px;">
-    <button onclick="saveMatchDetails('${g.name}', '${id}')">
-  💾 <span>Save Match Details</span>
-</button>
-    <div id="saved-${id}" style="font-size:12px; margin-top:6px;">
-      ${stored.saved ? 'Last saved: ' + stored.saved : ''}
+    <div style="margin-top:6px;">
+      <button onclick="saveMatchDetails('${g.name}', '${id}')">
+        💾 <span>Save Match Details</span>
+      </button>
+      <div id="saved-${id}" style="font-size:12px; margin-top:6px;">
+        ${stored.saved ? 'Last saved: ' + escapeHtml(stored.saved) : ''}
+      </div>
     </div>
-  </div>
-`;
+  `;
+
+  const ratingsReviewHTML = buildReviewSection(
+    id,
+    "ratingsReview",
+    "Ratings Review",
+    stored.ratingsReview || {}
+  );
+
+  const matchReviewHTML = buildReviewSection(
+    id,
+    "matchReview",
+    "Match Details Review",
+    stored.matchReview || {}
+  );
 
   return `
     <div class="popup">
@@ -3154,26 +3307,25 @@ const matchDetailsHTML = `
         </div>
       </div>
 
-     <!-- Tabs -->
-<div style="margin-top:8px;">
-  <button class="tab-btn active" id="tab-ratings-${id}" onclick="switchTab('${id}', 'ratings')">
-    ⭐ Ratings
-  </button>
-  <button class="tab-btn" id="tab-match-${id}" onclick="switchTab('${id}', 'match')">
-    ⚽ Match Details
-  </button>
-</div>
+      <div style="margin-top:8px;">
+        <button class="tab-btn active" id="tab-ratings-${id}" onclick="switchTab('${id}', 'ratings')">
+          ⭐ Ratings
+        </button>
+        <button class="tab-btn" id="tab-match-${id}" onclick="switchTab('${id}', 'match')">
+          ⚽ Match Details
+        </button>
+      </div>
 
-      <!-- Ratings content -->
       <div id="ratings-${id}" class="tab-content" style="display:block; margin-top:8px;">
         <h4>Ratings</h4>
         ${ratingsHTML}
+        ${ratingsReviewHTML}
       </div>
 
-      <!-- Match details content -->
       <div id="match-${id}-tab" class="tab-content" style="display:none; margin-top:8px;">
         <h4>Match Details</h4>
         ${matchDetailsHTML}
+        ${matchReviewHTML}
       </div>
     </div>
   `;
@@ -3514,8 +3666,11 @@ if (migrateBtn) {
 }
 
   // Save match data to Firestore
- window.saveMatchDetails = async function(name, id) {
+window.saveMatchDetails = async function(name, id) {
+  const existingLocal = JSON.parse(localStorage.getItem(`matchDetails-${name}`) || '{}');
+
   const data = {
+    ...existingLocal,
     match: document.getElementById(`match-${id}`).value,
     result: document.getElementById(`result-${id}`).value,
     stand: document.getElementById(`stand-${id}`).value,
@@ -3525,8 +3680,8 @@ if (migrateBtn) {
   };
 
   try {
-   localStorage.setItem(`matchDetails-${name}`, JSON.stringify(data)); // ✅ Save locally
-    await setDoc(doc(db, "matches", name), data); // ✅ Save to Firebase
+    localStorage.setItem(`matchDetails-${name}`, JSON.stringify(data));
+    await setDoc(doc(db, "matches", name), data, { merge: true });
     window.showSavedMatchDetails(name, id);
     document.getElementById(`saved-${id}`).innerText = "Saved to Firestore!";
   } catch (error) {
@@ -3536,33 +3691,109 @@ if (migrateBtn) {
 };
 
   // Load and display saved data
-  window.showSavedMatchDetails = async function(name, id) {
-    try {
-      const docSnap = await getDoc(doc(db, "matches", name));
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        document.getElementById(`match-${id}`).value = data.match || "";
-        document.getElementById(`result-${id}`).value = data.result || "";
-        document.getElementById(`stand-${id}`).value = data.stand || "";
-        document.getElementById(`block-${id}`).value = data.block || "";
-        document.getElementById(`row-${id}`).value = data.row || "";
-        document.getElementById(`seat-${id}`).value = data.seat || "";
+window.showSavedMatchDetails = async function(name, id) {
+  try {
+    let data = JSON.parse(localStorage.getItem(`matchDetails-${name}`) || '{}');
 
-        const savedEl = document.getElementById(`saved-${id}`);
-        savedEl.innerHTML = `
-          <strong>Saved:</strong><br>
-          Match: ${data.match || '-'}<br>
-          Result: ${data.result || '-'}<br>
-          Stand: ${data.stand || '-'}<br>
-          Block: ${data.block || '-'}<br>
-          Row: ${data.row || '-'}<br>
-          Seat: ${data.seat || '-'}
-        `;
-      }
-    } catch (err) {
-      console.error(`Failed to upload ${name}:`, err.message || err);
+    const docSnap = await getDoc(doc(db, "matches", name));
+    if (docSnap.exists()) {
+      data = { ...data, ...docSnap.data() };
+      localStorage.setItem(`matchDetails-${name}`, JSON.stringify(data));
     }
-  };
+
+    const matchEl = document.getElementById(`match-${id}`);
+    const resultEl = document.getElementById(`result-${id}`);
+    const standEl = document.getElementById(`stand-${id}`);
+    const blockEl = document.getElementById(`block-${id}`);
+    const rowEl = document.getElementById(`row-${id}`);
+    const seatEl = document.getElementById(`seat-${id}`);
+
+    if (matchEl) matchEl.value = data.match || "";
+    if (resultEl) resultEl.value = data.result || "";
+    if (standEl) standEl.value = data.stand || "";
+    if (blockEl) blockEl.value = data.block || "";
+    if (rowEl) rowEl.value = data.row || "";
+    if (seatEl) seatEl.value = data.seat || "";
+
+    const savedEl = document.getElementById(`saved-${id}`);
+    if (savedEl) {
+      savedEl.innerHTML = `
+        <strong>Saved:</strong><br>
+        Match: ${escapeHtml(data.match || '-')}<br>
+        Result: ${escapeHtml(data.result || '-')}<br>
+        Stand: ${escapeHtml(data.stand || '-')}<br>
+        Block: ${escapeHtml(data.block || '-')}<br>
+        Row: ${escapeHtml(data.row || '-')}<br>
+        Seat: ${escapeHtml(data.seat || '-')}
+      `;
+    }
+
+    const reviewTypes = ["ratingsReview", "matchReview"];
+
+    reviewTypes.forEach(reviewType => {
+      const review = data[reviewType] || {};
+
+      const ratingEl = document.getElementById(`${reviewType}-rating-${id}`);
+      const titleEl = document.getElementById(`${reviewType}-title-${id}`);
+      const textEl = document.getElementById(`${reviewType}-text-${id}`);
+      const previewEl = document.getElementById(`${reviewType}-saved-${id}`);
+
+      if (ratingEl) ratingEl.value = review.rating || "";
+      if (titleEl) titleEl.value = review.title || "";
+      if (textEl) textEl.value = review.text || "";
+
+      if (previewEl) {
+        previewEl.innerHTML = review.rating || review.title || review.text
+          ? `<strong>Saved review:</strong><br>
+             Rating: ${escapeHtml(review.rating || '-')} /5<br>
+             Title: ${escapeHtml(review.title || '-')}<br>
+             ${escapeHtml(review.text || '-')}`
+          : `No review saved yet.`;
+      }
+    });
+  } catch (err) {
+    console.error(`Failed to load ${name}:`, err.message || err);
+  }
+};
+  window.saveReview = async function(id, reviewType) {
+  try {
+    const popupEl = document.getElementById(`tab-ratings-${id}`)?.closest('.popup');
+    if (!popupEl) return;
+
+    const groundName = popupEl.querySelector("h3")?.textContent?.trim();
+    if (!groundName) return;
+
+    const rating = document.getElementById(`${reviewType}-rating-${id}`)?.value || "";
+    const title = document.getElementById(`${reviewType}-title-${id}`)?.value || "";
+    const text = document.getElementById(`${reviewType}-text-${id}`)?.value || "";
+
+    const existingLocal = JSON.parse(localStorage.getItem(`matchDetails-${groundName}`) || '{}');
+
+    existingLocal[reviewType] = {
+      rating,
+      title,
+      text
+    };
+
+    localStorage.setItem(`matchDetails-${groundName}`, JSON.stringify(existingLocal));
+
+    await setDoc(doc(db, "matches", groundName), existingLocal, { merge: true });
+
+    const previewEl = document.getElementById(`${reviewType}-saved-${id}`);
+    if (previewEl) {
+      previewEl.innerHTML = `
+        <strong>Saved review:</strong><br>
+        Rating: ${rating || '-'} /5<br>
+        Title: ${escapeHtml(title || '-')}<br>
+        ${escapeHtml(text || '-')}
+      `;
+    }
+  } catch (error) {
+    console.error("Error saving review:", error);
+    alert("Failed to save review.");
+  }
+};
+
 </script>
 </body>
 </html>
